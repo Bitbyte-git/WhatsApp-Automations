@@ -212,107 +212,48 @@ class MetaWhatsAppWebhookView(views.APIView):
                         processed_at=now
                     )
 
-                    # SBI-Style Interactive Service Auto-Reply Engine
-                    cleaned_content = content.strip().lower()
-                    infisq_client = InfisqWhatsAppClient()
-                    meta_client = MetaCloudAPIClient(
-                        phone_number_id=account.phone_number_id,
-                        access_token=account.access_token,
-                        waba_id=account.waba_id
-                    )
+                    # Check if client has active Chatbot Configuration in database
+                    chatbot_config = ChatbotConfiguration.objects.filter(client=client, is_enabled=True).first()
+                    if chatbot_config and content:
+                        cleaned_content = content.strip().lower()
+                        reply_text = ""
 
-                    is_greeting = any(cleaned_content.startswith(g) or cleaned_content == g for g in ['hi', 'hello', 'hey', 'start', 'menu', 'vanakkam'])
-                    is_wedding = any(w in cleaned_content for w in ['wedding', 'marriage', 'reception', 'package'])
-                    is_prewedding = any(w in cleaned_content for w in ['pre-wedding', 'couple', 'outdoor', 'shoot'])
-                    is_call_naveen = any(w in cleaned_content for w in ['call', 'naveen', 'human', 'agent', 'support', 'number', 'phone'])
-
-                    reply_header = f"📸 {client.name} - Salem"
-                    reply_text = ""
-                    reply_buttons = []
-
-                    if is_greeting:
-                        reply_header = f"📸 {client.name} - Salem"
-                        reply_text = (
-                            f"Good Day! Welcome to *{client.name}* 📸✨\n\n"
-                            "Seamless photography booking is just a message away! "
-                            "We capture your precious wedding, reception, outdoor & birthday moments into cinematic memories.\n\n"
-                            "Explore our Services 👇"
-                        )
-                        reply_buttons = ['📸 Wedding Package', '🎬 Pre-Wedding Shoot', '📞 Call Naveen']
-                    elif is_wedding:
-                        reply_header = "📸 Wedding Special Package"
-                        reply_text = (
-                            "🎉 *Wedding & Reception Special Package*\n\n"
-                            "• 2 Days Full HD Candid Photography + Cinematography\n"
-                            "• Traditional & Drone Coverage\n"
-                            "• Free 4K Cinematic Teaser Reel\n"
-                            "• Premium Velvet Photo Album (40 Pages)\n\n"
-                            "✨ *Flat 30% OFF for 2026-2027 Bookings!*\n\n"
-                            "Choose an option below to proceed:"
-                        )
-                        reply_buttons = ['📅 Check Date', '🖼️ View Portfolio', '📞 Call Naveen']
-                    elif is_prewedding:
-                        reply_header = "✨ Outdoor & Couple Shoot"
-                        reply_text = (
-                            "✨ *Outdoor & Pre-Wedding Couple Shoot*\n\n"
-                            "• 50 Color-graded High-Resolution Photos\n"
-                            "• 1 Cinematic Instagram Reel for social media\n"
-                            "• Salem & Yercaud scenic locations\n\n"
-                            "All at just ₹4,999! Limited slots available.\n\n"
-                            "Choose an option below:"
-                        )
-                        reply_buttons = ['📸 Book Shoot', '📍 View Locations', '📞 Call Naveen']
-                    elif is_call_naveen:
-                        reply_header = "📞 Connect with Studio"
-                        reply_text = (
-                            "You can reach Naveen directly at *+91 9363938143* or reply here with your wedding date and venue details. "
-                            "Our studio team will contact you immediately!"
-                        )
-                        reply_buttons = ['📅 Check Date', '📸 Wedding Package']
-                    else:
-                        chatbot_config = ChatbotConfiguration.objects.filter(client=client, is_enabled=True).first()
-                        if chatbot_config:
+                        # Check handover keywords
+                        handover_keys = [k.strip().lower() for k in (chatbot_config.handover_keywords or '').split(',') if k.strip()]
+                        if any(hk in cleaned_content for hk in handover_keys):
+                            reply_text = chatbot_config.handover_message or "Connecting you to an agent. Please hold on."
+                        elif cleaned_content in ['hi', 'hello', 'hey', 'start', 'menu']:
+                            reply_text = chatbot_config.welcome_message or f"Hello! Welcome to {client.name}. How can we assist you?"
+                        else:
+                            # Generate AI response using client's real knowledge base
                             ai_service = ChatbotAIService(chatbot_config)
                             ai_resp = ai_service.generate_response(content)
-                            reply_text = ai_resp.get('response', '')
-                        if not reply_text:
-                            reply_text = (
-                                f"Thank you for messaging *{client.name}*! How can we assist you with your photography needs today?\n\n"
-                                "Explore our Services 👇"
+                            reply_text = ai_resp.get('response') or chatbot_config.fallback_message
+
+                        if reply_text:
+                            infisq_client = InfisqWhatsAppClient()
+                            meta_client = MetaCloudAPIClient(
+                                phone_number_id=account.phone_number_id,
+                                access_token=account.access_token,
+                                waba_id=account.waba_id
                             )
-                            reply_buttons = ['📸 Wedding Package', '🎬 Pre-Wedding Shoot', '📞 Call Naveen']
+                            if infisq_client.is_configured:
+                                infisq_client.send_text_message(contact=from_phone, message=reply_text)
+                            elif meta_client.is_configured:
+                                meta_client.send_text_message(to_phone_number=from_phone, text_content=reply_text)
 
-                    if reply_text:
-                        button_str = ','.join(reply_buttons[:3]) if reply_buttons else ''
-                        if infisq_client.is_configured:
-                            if button_str:
-                                infisq_client.send_button_message(
-                                    contact=from_phone,
-                                    message=reply_text,
-                                    button=button_str,
-                                    header_type='text',
-                                    header_text=reply_header
-                                )
-                            else:
-                                infisq_client.send_text_message(
-                                    contact=from_phone,
-                                    message=f"*{reply_header}*\n\n{reply_text}"
-                                )
-                        elif meta_client.is_configured:
-                            meta_client.send_text_message(to_phone_number=from_phone, text_content=reply_text)
-
-                        Message.objects.create(
-                            conversation=conv,
-                            client=client,
-                            whatsapp_account=account,
-                            contact=contact,
-                            wamid=f"BOT-{int(timezone.now().timestamp())}",
-                            direction='OUTBOUND',
-                            message_type='BUTTON' if reply_buttons else 'TEXT',
-                            content=f"[{reply_header}]\n{reply_text}" + (f"\nButtons: {button_str}" if button_str else ""),
-                            status='SENT',
-                            sent_at=now
-                        )
+                            Message.objects.create(
+                                conversation=conv,
+                                client=client,
+                                whatsapp_account=account,
+                                contact=contact,
+                                wamid=f"BOT-{int(timezone.now().timestamp())}",
+                                direction='OUTBOUND',
+                                message_type='TEXT',
+                                content=reply_text,
+                                status='SENT',
+                                sent_at=now
+                            )
 
         return HttpResponse('EVENT_RECEIVED', status=200)
 
