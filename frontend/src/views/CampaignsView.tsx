@@ -32,10 +32,15 @@ export const CampaignsView: React.FC = () => {
   const [buttons, setButtons] = useState<string[]>([]);
   const [newButtonText, setNewButtonText] = useState('');
 
-  // Target Mode: 'AUDIENCE' or 'TEST'
-  const [deliveryMode, setDeliveryMode] = useState<'AUDIENCE' | 'TEST'>('TEST');
+  // Service Type
+  const [serviceType, setServiceType] = useState<'MARKETING' | 'SERVICE'>('MARKETING');
+
+  // Target Mode: 'ALL' | 'CUSTOM_COUNT' | 'TEST'
+  const [deliveryMode, setDeliveryMode] = useState<'ALL' | 'CUSTOM_COUNT' | 'TEST'>('TEST');
+  const [customSendCount, setCustomSendCount] = useState<number>(100);
   const [testPhoneNumber, setTestPhoneNumber] = useState('');
   const [customAudienceText, setCustomAudienceText] = useState('');
+  const [connectingContacts, setConnectingContacts] = useState(false);
 
   // Status Alerts
   const [alertSuccess, setAlertSuccess] = useState('');
@@ -77,9 +82,28 @@ export const CampaignsView: React.FC = () => {
     setButtons(buttons.filter((_, i) => i !== index));
   };
 
+  const handleConnectContacts = async () => {
+    setConnectingContacts(true);
+    setAlertSuccess('');
+    setAlertError('');
+    try {
+      const res = await api.syncWhatsAppDevice();
+      if (res?.success) {
+        setAlertSuccess(`Contacts synced! ${res.total_contacts || 0} real contacts ready.`);
+        loadData();
+      } else {
+        setAlertError(res?.error || 'Failed to sync contacts.');
+      }
+    } catch (err: any) {
+      setAlertError(err.message || 'Error connecting contacts.');
+    } finally {
+      setConnectingContacts(false);
+    }
+  };
+
   const handleQuickDispatch = async () => {
     if (!message.trim()) {
-      setAlertError('Please enter message text to broadcast.');
+      setAlertError('Please enter your marketing offer message.');
       return;
     }
 
@@ -88,25 +112,40 @@ export const CampaignsView: React.FC = () => {
     setSending(true);
 
     try {
+      let recipientType = 'AUDIENCE';
       let audienceNumbers: string[] = [];
-      if (deliveryMode === 'AUDIENCE') {
-        if (customAudienceText.trim()) {
+
+      if (deliveryMode === 'TEST') {
+        recipientType = 'TEST';
+      } else if (deliveryMode === 'ALL') {
+        recipientType = 'AUDIENCE';
+        if (contacts.length > 0) {
+          audienceNumbers = contacts.map((c) => c.phone_number);
+        } else if (customAudienceText.trim()) {
           audienceNumbers = customAudienceText
             .split(/[\n,]/)
             .map((n) => n.trim())
             .filter((n) => n.length >= 10);
-        } else if (contacts.length > 0) {
-          audienceNumbers = contacts.map((c) => c.phone_number);
-        } else if (testPhoneNumber.trim()) {
-          audienceNumbers = [testPhoneNumber.trim()];
+        }
+      } else if (deliveryMode === 'CUSTOM_COUNT') {
+        recipientType = 'AUDIENCE';
+        const count = Math.max(1, customSendCount || 100);
+        if (contacts.length > 0) {
+          audienceNumbers = contacts.slice(0, count).map((c) => c.phone_number);
+        } else if (customAudienceText.trim()) {
+          audienceNumbers = customAudienceText
+            .split(/[\n,]/)
+            .map((n) => n.trim())
+            .filter((n) => n.length >= 10)
+            .slice(0, count);
         }
       }
 
       const payload = {
-        recipient_type: deliveryMode,
+        recipient_type: recipientType,
         phone_number: testPhoneNumber.trim(),
         phone_numbers: audienceNumbers,
-        service_name: campaignTitle.trim() || 'WhatsApp Broadcast',
+        service_name: campaignTitle.trim() || 'Marketing Offer',
         header_text: headerText.trim(),
         message: message.trim(),
         buttons: buttons.filter((b) => b.trim().length > 0),
@@ -118,8 +157,8 @@ export const CampaignsView: React.FC = () => {
       if (res?.success) {
         setAlertSuccess(
           deliveryMode === 'TEST'
-            ? `Message delivered to test number: +91 ${testPhoneNumber}!`
-            : `Broadcast launched successfully to ${res.sent_count} recipient(s)!`
+            ? `Test message delivered to +91 ${testPhoneNumber}!`
+            : `Marketing broadcast launched successfully to ${res.sent_count} recipient(s)!`
         );
         if (res.wallet_balance !== undefined) {
           setWalletBalance(res.wallet_balance);
@@ -278,68 +317,125 @@ export const CampaignsView: React.FC = () => {
 
           {/* Audience Selection */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-3">
-              2. Target Audience
-            </h2>
-
-            <div className="grid grid-cols-2 gap-3 p-1 bg-slate-100 rounded-xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                2. Connect Contacts & Target Audience
+              </h2>
               <button
                 type="button"
-                onClick={() => setDeliveryMode('TEST')}
-                className={`py-2 px-3 rounded-lg text-xs font-bold transition-all ${
-                  deliveryMode === 'TEST' ? 'bg-white text-[#075E54] shadow-xs' : 'text-slate-600'
-                }`}
+                onClick={handleConnectContacts}
+                disabled={connectingContacts}
+                className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-[#075E54] border border-emerald-200 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1.5"
               >
-                ⚡ Single Test Number
-              </button>
-              <button
-                type="button"
-                onClick={() => setDeliveryMode('AUDIENCE')}
-                className={`py-2 px-3 rounded-lg text-xs font-bold transition-all ${
-                  deliveryMode === 'AUDIENCE' ? 'bg-white text-[#075E54] shadow-xs' : 'text-slate-600'
-                }`}
-              >
-                👥 Audience Contacts ({contacts.length})
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>{connectingContacts ? 'Connecting...' : '📱 Connect / Sync Contacts'}</span>
               </button>
             </div>
 
-            {deliveryMode === 'TEST' ? (
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Test Phone Number (e.g. 9363938143)
+            {/* Contacts Status Banner */}
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+              <div className="flex items-center space-x-2">
+                <span className={`w-2.5 h-2.5 rounded-full ${contacts.length > 0 ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                <span className="font-semibold text-slate-700">Connected Contacts:</span>
+              </div>
+              <span className="font-black text-[#075E54] text-sm">{contacts.length} Real Contacts Available</span>
+            </div>
+
+            {/* 3 Delivery Choices */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setDeliveryMode('ALL')}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  deliveryMode === 'ALL'
+                    ? 'border-[#075E54] bg-emerald-50/60 ring-1 ring-[#075E54]'
+                    : 'border-slate-200 bg-white hover:bg-slate-50'
+                }`}
+              >
+                <p className="text-xs font-bold text-slate-900">All Contacts</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Send to all {contacts.length} contacts</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDeliveryMode('CUSTOM_COUNT')}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  deliveryMode === 'CUSTOM_COUNT'
+                    ? 'border-[#075E54] bg-emerald-50/60 ring-1 ring-[#075E54]'
+                    : 'border-slate-200 bg-white hover:bg-slate-50'
+                }`}
+              >
+                <p className="text-xs font-bold text-slate-900">Custom Count</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">e.g. 50, 100, 500 people</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDeliveryMode('TEST')}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  deliveryMode === 'TEST'
+                    ? 'border-amber-400 bg-amber-50/60 ring-1 ring-amber-400'
+                    : 'border-slate-200 bg-white hover:bg-slate-50'
+                }`}
+              >
+                <p className="text-xs font-bold text-amber-900">⚡ Single Test</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Test on own phone</p>
+              </button>
+            </div>
+
+            {/* Custom Count Input */}
+            {deliveryMode === 'CUSTOM_COUNT' && (
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  How many contacts to send to?
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={Math.max(1, contacts.length)}
+                  value={customSendCount}
+                  onChange={(e) => setCustomSendCount(parseInt(e.target.value) || 10)}
+                  placeholder="e.g. 100"
+                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54] bg-white"
+                />
+                <p className="text-[10px] text-slate-500">Will send to the first {customSendCount} connected contacts.</p>
+              </div>
+            )}
+
+            {/* Single Test Number Input */}
+            {deliveryMode === 'TEST' && (
+              <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-200 space-y-1.5">
+                <label className="block text-xs font-bold text-amber-900 uppercase tracking-wider">
+                  Enter Test WhatsApp Number
                 </label>
                 <div className="flex items-center space-x-2">
-                  <span className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-600">
+                  <span className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600">
                     +91
                   </span>
                   <input
                     type="text"
                     value={testPhoneNumber}
                     onChange={(e) => setTestPhoneNumber(e.target.value)}
-                    placeholder="Enter 10-digit number"
-                    className="flex-1 px-3 py-2 text-xs font-semibold border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54]"
+                    placeholder="Enter 10-digit phone number"
+                    className="flex-1 px-3 py-2 text-xs font-bold border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54] bg-white"
                   />
                 </div>
               </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs">
-                  <span className="font-semibold text-emerald-900">Saved Contacts in System:</span>
-                  <span className="font-black text-[#075E54]">{contacts.length} Contacts</span>
-                </div>
+            )}
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Or Enter Additional Numbers (Comma/Newline Separated)
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={customAudienceText}
-                    onChange={(e) => setCustomAudienceText(e.target.value)}
-                    placeholder="e.g. 9876543210, 9123456780"
-                    className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54] font-mono"
-                  />
-                </div>
+            {/* Optional additional numbers */}
+            {deliveryMode !== 'TEST' && (
+              <div>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                  Or Paste Extra Numbers (Optional, Comma/Newline Separated)
+                </label>
+                <textarea
+                  rows={2}
+                  value={customAudienceText}
+                  onChange={(e) => setCustomAudienceText(e.target.value)}
+                  placeholder="e.g. 9876543210, 9123456780"
+                  className="w-full p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54] font-mono"
+                />
               </div>
             )}
           </div>
@@ -360,7 +456,13 @@ export const CampaignsView: React.FC = () => {
               ) : (
                 <>
                   <Send className="w-5 h-5" />
-                  <span>{deliveryMode === 'TEST' ? 'Send Test Message' : 'Launch WhatsApp Broadcast'}</span>
+                  <span>
+                    {deliveryMode === 'TEST'
+                      ? `⚡ Send Test Message to +91 ${testPhoneNumber || 'Phone'}`
+                      : deliveryMode === 'CUSTOM_COUNT'
+                      ? `🚀 Send Marketing Offer to ${Math.min(customSendCount, contacts.length || customSendCount)} Contacts`
+                      : `🚀 Send Marketing Offer to ALL ${contacts.length} Contacts`}
+                  </span>
                 </>
               )}
             </button>
