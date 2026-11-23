@@ -130,6 +130,7 @@ export const api = {
   updateChatbotConfig: (id: number, data: any) => api.patch<any>(`/chatbot/config/${id}/`, data),
   createChatbotConfig: (data: any) => api.post<any>('/chatbot/config/', data),
   simulateChatbot: (id: number, data: any) => api.post<any>(`/chatbot/config/${id}/simulate/`, data),
+  testAutoReply: (data: any) => api.post<any>('/chatbot/config/test_auto_reply/', data),
   getKnowledgeDocs: () => api.get<any>('/chatbot/documents/'),
   createKnowledgeDoc: (data: any) => api.post<any>('/chatbot/documents/', data),
   deleteKnowledgeDoc: (id: number) => api.del<any>(`/chatbot/documents/${id}/`),

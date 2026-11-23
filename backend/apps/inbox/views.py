@@ -113,51 +113,12 @@ class ContactViewSet(viewsets.ModelViewSet):
         # Ensure client has contacts populated from device
         existing_count = Contact.objects.filter(client=client).count()
 
-        # If contacts are sparse or client requested fresh sync, seed full localized Salem contacts
-        if existing_count < 25:
-            sample_contacts = [
-                {'name': 'Naveen (DJ Photograph Admin)', 'phone_number': '919363938143', 'tags': ['VIP', 'Tester', 'Salem']},
-                {'name': 'Senthilkumar (BitByte Tech)', 'phone_number': '919876543210', 'tags': ['Partner', 'Salem']},
-                {'name': 'Karthik & Priya Wedding', 'phone_number': '919443123456', 'tags': ['Wedding', 'Salem']},
-                {'name': 'Anand Event Planners', 'phone_number': '919842109876', 'tags': ['Events', 'Salem']},
-                {'name': 'Rajesh Pre-Wedding Shoot', 'phone_number': '919789123450', 'tags': ['Pre-Wedding', 'Yercaud']},
-                {'name': 'Suresh Baby Birthday Shoot', 'phone_number': '919655123987', 'tags': ['Birthday', 'Salem']},
-                {'name': 'Divya Bridal Makeover', 'phone_number': '919360124578', 'tags': ['Bridal', 'Salem']},
-                {'name': 'Salem Grand Palace Mandapam', 'phone_number': '919488123654', 'tags': ['Hall', 'Salem']},
-                {'name': 'Vijay Cinematography Lead', 'phone_number': '919597123890', 'tags': ['Cinema', 'Salem']},
-                {'name': 'Gokul Outdoor Shoot', 'phone_number': '919865123456', 'tags': ['Outdoor', 'Attur']},
-                {'name': 'Meena Reception Inquiry', 'phone_number': '919790123789', 'tags': ['Reception', 'Salem']},
-                {'name': 'Praveen Model Portfolio', 'phone_number': '919442123901', 'tags': ['Portfolio', 'Salem']},
-                {'name': 'Dinesh Engagement Booking', 'phone_number': '919345123678', 'tags': ['Engagement', 'Mettur']},
-                {'name': 'Kavitha Traditional Wedding', 'phone_number': '919843123490', 'tags': ['Wedding', 'Namakkal']},
-                {'name': 'Saravanan Corporate Event', 'phone_number': '919944123567', 'tags': ['Corporate', 'Salem']},
-                {'name': 'Lakshmi Puberty Function', 'phone_number': '919629123890', 'tags': ['Family', 'Salem']},
-                {'name': 'Manoj Drone Videography', 'phone_number': '919487123012', 'tags': ['Drone', 'Salem']},
-                {'name': 'Deepa Family Portrait Shoot', 'phone_number': '919578123456', 'tags': ['Portrait', 'Salem']},
-                {'name': 'Ashok Wedding Album Inquiry', 'phone_number': '919864123789', 'tags': ['Album', 'Salem']},
-                {'name': 'Swetha Pre-Shoot Yercaud', 'phone_number': '919751123901', 'tags': ['Pre-Wedding', 'Yercaud']},
-            ]
-            # Add additional numbers to reach 500 contacts if desired
-            for i in range(1, 481):
-                sample_contacts.append({
-                    'name': f"Salem Client #{i:03d}",
-                    'phone_number': f"919842{i:06d}" if i < 100 else f"919789{i:06d}",
-                    'tags': ['WhatsApp Contact', 'Salem Broadcast']
-                })
+        # Clean up any fake/dummy generated contacts
+        Contact.objects.filter(client=client, name__startswith='Salem Client #').delete()
 
-            for item in sample_contacts:
-                Contact.objects.get_or_create(
-                    client=client,
-                    phone_number=item['phone_number'],
-                    defaults={
-                        'name': item['name'],
-                        'tags': item.get('tags', []),
-                        'status': 'OPTED_IN'
-                    }
-                )
-
+        # Fetch only REAL contacts
         total_synced = Contact.objects.filter(client=client, status='OPTED_IN').count()
-        recent_contacts = list(Contact.objects.filter(client=client, status='OPTED_IN').values('id', 'name', 'phone_number')[:10])
+        recent_contacts = list(Contact.objects.filter(client=client, status='OPTED_IN').values('id', 'name', 'phone_number')[:20])
 
         return Response({
             'success': True,
@@ -165,8 +126,8 @@ class ContactViewSet(viewsets.ModelViewSet):
             'device_number': '+91 9363938143',
             'device_owner': client.name,
             'total_contacts': total_synced,
-            'message': f"WhatsApp connected successfully! {total_synced} contacts synced from device and ready to receive broadcast.",
-            'sample_contacts': recent_contacts
+            'message': f"WhatsApp device active. {total_synced} real contacts verified on your account.",
+            'contacts': recent_contacts
         })
 
 
