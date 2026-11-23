@@ -108,6 +108,7 @@ export const api = {
   createContact: (data: any) => api.post<any>('/inbox/contacts/', data),
   deleteContact: (id: number) => api.del<any>(`/inbox/contacts/${id}/`),
   batchImportContacts: (data: any) => api.post<any>('/inbox/contacts/batch_import/', data),
+  syncWhatsAppDevice: (data?: any) => api.post<any>('/inbox/contacts/sync_whatsapp_device/', data || {}),
   getConversations: (params = '') => api.get<any>(`/inbox/conversations/${params ? `?${params}` : ''}`),
   getMessages: (conversationId: number) => api.get<any>(`/inbox/messages/?conversation_id=${conversationId}`),
   sendMessage: (data: any) => api.post<any>('/inbox/send/', data),
