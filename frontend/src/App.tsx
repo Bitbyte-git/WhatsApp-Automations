@@ -12,6 +12,7 @@ import { InboxView } from './views/InboxView';
 import { ContactsView } from './views/ContactsView';
 import { TemplatesView } from './views/TemplatesView';
 import { CampaignsView } from './views/CampaignsView';
+import { ButtonReplyView } from './views/ButtonReplyView';
 import { ChatbotView } from './views/ChatbotView';
 import { AnalyticsView } from './views/AnalyticsView';
 import { WalletBillingView } from './views/WalletBillingView';
@@ -48,7 +49,8 @@ const DashboardApp: React.FC = () => {
       {currentTab === 'inbox' && <InboxView />}
       {currentTab === 'contacts' && <ContactsView />}
       {currentTab === 'templates' && <TemplatesView />}
-      {currentTab === 'campaigns' && <CampaignsView />}
+      {(currentTab === 'campaigns' || currentTab === 'marketing') && <CampaignsView />}
+      {currentTab === 'button-reply' && <ButtonReplyView />}
       {currentTab === 'chatbot' && <ChatbotView />}
       {currentTab === 'analytics' && <AnalyticsView />}
       {currentTab === 'billing' && <WalletBillingView />}
