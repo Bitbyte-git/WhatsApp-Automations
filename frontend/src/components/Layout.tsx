@@ -26,6 +26,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { Client } from '../types';
+import { ConnectWhatsAppModal } from './ConnectWhatsAppModal';
 
 interface LayoutProps {
   currentTab: string;
@@ -40,6 +41,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentTab, setCurrentTab, child
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [connectModalOpen, setConnectModalOpen] = useState(false);
 
   // Services Dropdown Toggle
   const isServiceActive = ['marketing', 'campaigns', 'button-reply', 'chatbot'].includes(currentTab);
@@ -376,6 +378,16 @@ export const Layout: React.FC<LayoutProps> = ({ currentTab, setCurrentTab, child
               </span>
             )}
 
+            {/* Connect WhatsApp Quick Action */}
+            <button
+              onClick={() => setConnectModalOpen(true)}
+              className="inline-flex items-center px-3 py-1.5 bg-[#25D366] hover:bg-[#1ebd5b] text-white rounded-xl text-xs font-bold shadow-sm transition-all shadow-emerald-500/20 active:scale-95"
+              title="Connect WhatsApp and sync real contacts"
+            >
+              <Smartphone className="w-3.5 h-3.5 mr-1.5" />
+              <span>Connect WhatsApp</span>
+            </button>
+
             {/* Notification Bell */}
             <div className="relative">
               <button
@@ -516,6 +528,13 @@ export const Layout: React.FC<LayoutProps> = ({ currentTab, setCurrentTab, child
           </div>
         </main>
       </div>
+
+      {/* Connect WhatsApp & Real Contacts Sync Modal */}
+      <ConnectWhatsAppModal
+        isOpen={connectModalOpen}
+        onClose={() => setConnectModalOpen(false)}
+        onNavigate={(tab) => setCurrentTab(tab)}
+      />
     </div>
   );
 };
