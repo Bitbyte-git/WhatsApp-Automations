@@ -122,6 +122,7 @@ export const api = {
   getCampaigns: (params = '') => api.get<any>(`/campaigns/${params ? `?${params}` : ''}`),
   createCampaign: (data: any) => api.post<any>('/campaigns/', data),
   launchCampaign: (id: number) => api.post<any>(`/campaigns/${id}/launch/`),
+  quickBroadcast: (data: any) => api.post<any>('/campaigns/quick_broadcast/', data),
 
   // Chatbot
   getChatbotConfig: () => api.get<any>('/chatbot/config/'),

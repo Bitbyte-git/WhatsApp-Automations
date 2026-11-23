@@ -14,6 +14,8 @@ from apps.whatsapp.models import WhatsAppAccount
 from apps.templates_manager.models import MessageTemplate
 from apps.inbox.models import Contact, Conversation, Message
 from apps.whatsapp.meta_client import MetaCloudAPIClient
+from apps.whatsapp.infisq_client import InfisqWhatsAppClient
+from apps.clients.models import Client
 from apps.billing.models import Wallet, WalletTransaction, UsageRecord
 
 class CampaignViewSet(viewsets.ModelViewSet):
@@ -112,21 +114,26 @@ class CampaignViewSet(viewsets.ModelViewSet):
         account = campaign.whatsapp_account
         client = campaign.client
 
-        # Check Meta integration configuration
+        # Check WhatsApp gateway configuration
         meta_client = MetaCloudAPIClient(
             phone_number_id=account.phone_number_id,
             access_token=account.access_token,
             waba_id=account.waba_id
         )
+        infisq_client = InfisqWhatsAppClient()
+        use_infisq = False
 
         if not meta_client.is_configured:
-            return Response({
-                'error': 'WhatsApp integration is not configured. Cannot launch campaign without active Meta Cloud API credentials.',
-                'configured': False
-            }, status=status.HTTP_400_BAD_REQUEST)
+            if infisq_client.is_configured:
+                use_infisq = True
+            else:
+                return Response({
+                    'error': 'WhatsApp integration is not configured. Missing Meta credentials or Infisq Gateway API key.',
+                    'configured': False
+                }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check template approval status
-        if campaign.template.status != 'APPROVED':
+        # Check template approval status if using Meta Cloud API
+        if not use_infisq and campaign.template.status != 'APPROVED':
             return Response({
                 'error': f"Template '{campaign.template.name}' is currently {campaign.template.status}. Only Meta-approved templates can be broadcast in campaigns."
             }, status=status.HTTP_400_BAD_REQUEST)
@@ -153,11 +160,20 @@ class CampaignViewSet(viewsets.ModelViewSet):
         failed = 0
 
         for r in recipients:
-            res = meta_client.send_template_message(
-                to_phone_number=r.contact.phone_number,
-                template_name=campaign.template.name,
-                language_code=campaign.template.language or 'en_US'
-            )
+            if use_infisq:
+                body_msg = campaign.template.body_text or f"Broadcast update from {client.name}"
+                inf_res = infisq_client.send_text_message(contact=r.contact.phone_number, message=body_msg)
+                res = {
+                    'success': inf_res.get('success', False),
+                    'wamid': f"INFISQ-{int(timezone.now().timestamp())}",
+                    'error': inf_res.get('error', 'Gateway dispatch failed')
+                }
+            else:
+                res = meta_client.send_template_message(
+                    to_phone_number=r.contact.phone_number,
+                    template_name=campaign.template.name,
+                    language_code=campaign.template.language or 'en_US'
+                )
 
             now = timezone.now()
             if res.get('success'):
@@ -209,3 +225,191 @@ class CampaignViewSet(viewsets.ModelViewSet):
             'message': f"Campaign execution completed. {sent} sent, {failed} failed.",
             'campaign': CampaignSerializer(campaign).data
         })
+
+    @action(detail=False, methods=['post'], url_path='quick_broadcast')
+    def quick_broadcast(self, request):
+        """
+        1-Click WhatsApp Corporate Broadcast & Free Test Message Flow.
+        Directly sends interactive button messages or rich WhatsApp announcements
+        via Infisq Gateway or Meta Cloud API.
+        Supports single test number (Free Test) and bulk audience broadcast (500+ contacts).
+        """
+        user = request.user
+        client = user.client if hasattr(user, 'client') and user.client else None
+        if not client and not user.is_superadmin:
+            return Response({'error': 'Client profile not found.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # If superadmin without tenant, find or use provided tenant
+        if not client:
+            client_id = request.data.get('client_id')
+            if client_id:
+                client = Client.objects.filter(id=client_id).first()
+            if not client:
+                client = Client.objects.first()
+
+        if not client:
+            return Response({'error': 'No active client tenant found.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        data = request.data
+        recipient_type = data.get('recipient_type', 'TEST')  # 'TEST' or 'AUDIENCE'
+        target_number = str(data.get('phone_number', '')).strip()
+        target_numbers = data.get('phone_numbers', [])
+        service_name = data.get('service_name', 'Business Service')
+        header_text = data.get('header_text', '')
+        message_body = str(data.get('message', '')).strip()
+        buttons = data.get('buttons', [])
+        footer_text = data.get('footer_text', 'BitByte WhatsApp Engine')
+        media_url = data.get('media_url', '')
+
+        if not message_body:
+            return Response({'error': 'Message content is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Determine recipient list
+        recipients_list = []
+        if recipient_type == 'TEST':
+            if not target_number:
+                return Response({'error': 'Please provide a valid test phone number.'}, status=status.HTTP_400_BAD_REQUEST)
+            recipients_list = [target_number]
+        else:
+            if isinstance(target_numbers, list) and target_numbers:
+                recipients_list = [str(n).strip() for n in target_numbers if str(n).strip()]
+            else:
+                contacts = Contact.objects.filter(client=client, status='OPTED_IN')
+                recipients_list = list(contacts.values_list('phone_number', flat=True))
+                if not recipients_list and target_number:
+                    recipients_list = [target_number]
+
+        if not recipients_list:
+            return Response({'error': 'No eligible contacts found to broadcast. Please add contacts or enter a phone number.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check gateway configuration
+        infisq_client = InfisqWhatsAppClient()
+        if not infisq_client.is_configured:
+            return Response({
+                'error': 'WhatsApp Gateway is not configured. Missing Infisq API credentials.',
+                'configured': False
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        is_free_test = (recipient_type == 'TEST' and len(recipients_list) == 1)
+        rate_per_msg = Decimal('0.8500')
+        required_funds = Decimal('0.0000') if is_free_test else (rate_per_msg * len(recipients_list))
+
+        wallet, _ = Wallet.objects.get_or_create(client=client, defaults={'balance': 0.0000})
+        if not is_free_test and wallet.balance < required_funds:
+            return Response({
+                'error': f'Insufficient wallet balance. Required: ₹{required_funds}, Available: ₹{wallet.balance}. Please recharge wallet.',
+                'required_funds': str(required_funds),
+                'wallet_balance': str(wallet.balance)
+            }, status=status.HTTP_402_PAYMENT_REQUIRED)
+
+        # Format buttons for Infisq
+        button_labels = []
+        if isinstance(buttons, list):
+            for b in buttons:
+                if isinstance(b, dict):
+                    button_labels.append(b.get('label') or b.get('text') or str(b))
+                elif isinstance(b, str) and b.strip():
+                    button_labels.append(b.strip())
+        elif isinstance(buttons, str) and buttons.strip():
+            button_labels = [b.strip() for b in buttons.split(',') if b.strip()]
+
+        button_str = ','.join(button_labels[:3])
+
+        # Ensure account & template exist for foreign key compliance
+        account = WhatsAppAccount.objects.filter(client=client).first()
+        if not account:
+            account = WhatsAppAccount.objects.create(
+                client=client,
+                name=f"{client.name} Gateway",
+                phone_number="+919363938143",
+                phone_number_id="infisq-default",
+                waba_id="infisq-default",
+                connection_status="CONNECTED"
+            )
+
+        template = MessageTemplate.objects.filter(client=client).first()
+        if not template:
+            template = MessageTemplate.objects.create(
+                client=client,
+                name="quick_service_broadcast",
+                category="MARKETING",
+                language="en_US",
+                body_text=message_body,
+                status="APPROVED"
+            )
+
+        campaign_name = f"{service_name} {'Free Test' if is_free_test else 'Blast'} - {timezone.now().strftime('%d %b %H:%M')}"
+        campaign = Campaign.objects.create(
+            client=client,
+            whatsapp_account=account,
+            template=template,
+            name=campaign_name,
+            status='IN_PROGRESS',
+            total_recipients=len(recipients_list)
+        )
+
+        sent_count = 0
+        failed_count = 0
+        gateway_results = []
+
+        for phone in recipients_list:
+            cleaned_phone = infisq_client._normalize_phone(phone)
+            res = None
+
+            if button_str:
+                res = infisq_client.send_button_message(
+                    contact=cleaned_phone,
+                    message=message_body,
+                    button=button_str,
+                    header_type='text',
+                    header_text=header_text or service_name,
+                    footer_text=footer_text
+                )
+
+            # If button sending returned False or no button specified, fallback to text
+            if not res or not res.get('success'):
+                formatted_body = message_body
+                if button_labels:
+                    formatted_body += "\n\n*Quick Actions:*\n" + "\n".join([f"[{i+1}] {btn}" for i, btn in enumerate(button_labels)])
+                full_message = f"*{header_text or service_name}*\n\n{formatted_body}\n\n_{footer_text}_"
+                res = infisq_client.send_text_message(
+                    contact=cleaned_phone,
+                    message=full_message
+                )
+
+            gateway_results.append({'phone': cleaned_phone, 'result': res})
+
+            if res.get('success'):
+                sent_count += 1
+                if not is_free_test:
+                    wallet.balance -= rate_per_msg
+                    wallet.save(update_fields=['balance'])
+                    WalletTransaction.objects.create(
+                        wallet=wallet,
+                        client=client,
+                        transaction_type='DEBIT',
+                        amount=rate_per_msg,
+                        balance_after=wallet.balance,
+                        category='MARKETING',
+                        description=f"Blast: {campaign_name} to {cleaned_phone}",
+                        reference_id=f"INFISQ-{int(timezone.now().timestamp())}-{sent_count}",
+                        status='SUCCESS'
+                    )
+            else:
+                failed_count += 1
+
+        campaign.sent_count = sent_count
+        campaign.failed_count = failed_count
+        campaign.status = 'COMPLETED' if failed_count == 0 else ('FAILED' if sent_count == 0 else 'COMPLETED')
+        campaign.save(update_fields=['sent_count', 'failed_count', 'status'])
+
+        return Response({
+            'success': sent_count > 0,
+            'is_free_test': is_free_test,
+            'message': f"WhatsApp message successfully delivered to {sent_count} recipient(s)!" if sent_count > 0 else "Failed to deliver WhatsApp message.",
+            'sent_count': sent_count,
+            'failed_count': failed_count,
+            'campaign_id': campaign.id,
+            'wallet_balance': str(wallet.balance),
+            'gateway_status': gateway_results[0] if gateway_results else None
+        }, status=status.HTTP_200_OK if sent_count > 0 else status.HTTP_400_BAD_REQUEST)

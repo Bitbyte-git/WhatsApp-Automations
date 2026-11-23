@@ -84,29 +84,34 @@ export const OverviewView: React.FC<{ onNavigate: (tab: string) => void }> = ({ 
   const hasRecords = stats && (stats.total_messages_sent > 0 || stats.total_accounts > 0 || (isSuperadmin && stats.total_clients > 0));
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-8">
+      {/* Page Header with Generous Breathing Room */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-slate-200/80">
         <div>
-          <h2 className="text-xl font-bold text-gray-900 tracking-tight">Overview Dashboard</h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Real-time multi-tenant WhatsApp Business statistics from BitByte database.
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Overview Dashboard</h1>
+            <span className="px-3 py-1 rounded-full bg-emerald-100 text-[#075E54] text-[11px] font-bold border border-emerald-200/60 shadow-2xs">
+              {isSuperadmin ? 'Superadmin Platform' : 'Client Store'}
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">
+            Real-time multi-tenant WhatsApp Business metrics synced with Neon PostgreSQL.
           </p>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => onNavigate('inbox')}
-            className="px-3.5 py-2 text-xs font-semibold text-white bg-[#25D366] hover:bg-[#1faa53] rounded-xl shadow-sm transition-colors flex items-center"
+            className="px-4 py-2.5 text-xs font-bold text-white bg-[#075E54] hover:bg-[#064E3B] rounded-xl shadow-md shadow-emerald-950/10 transition-all flex items-center gap-2 cursor-pointer"
           >
-            <Send className="w-3.5 h-3.5 mr-1.5" />
-            Open Team Inbox
+            <Send className="w-3.5 h-3.5" />
+            <span>Open Team Inbox</span>
           </button>
           <button
             onClick={() => onNavigate('whatsapp-accounts')}
-            className="px-3.5 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl shadow-subtle transition-colors flex items-center"
+            className="px-4 py-2.5 text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl shadow-2xs transition-all flex items-center gap-2 cursor-pointer"
           >
-            <Smartphone className="w-3.5 h-3.5 mr-1.5 text-gray-500" />
-            WhatsApp Accounts
+            <Smartphone className="w-3.5 h-3.5 text-slate-500" />
+            <span>WhatsApp Accounts</span>
           </button>
         </div>
       </div>
