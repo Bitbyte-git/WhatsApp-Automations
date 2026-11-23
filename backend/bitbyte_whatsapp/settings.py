@@ -202,6 +202,11 @@ META_GRAPH_API_VERSION = os.environ.get('META_GRAPH_API_VERSION', 'v21.0')
 META_GRAPH_URL = f"https://graph.facebook.com/{META_GRAPH_API_VERSION}"
 META_SYSTEM_USER_TOKEN = os.environ.get('META_SYSTEM_USER_TOKEN', '')
 
+# Infisq WhatsApp Gateway Settings
+INFISQ_WA_BASE_URL = os.environ.get('INFISQ_WA_BASE_URL', 'https://wa.infisq.com/api')
+INFISQ_WA_LICENSE_NUMBER = os.environ.get('INFISQ_WA_LICENSE_NUMBER', '43359374485')
+INFISQ_WA_API_KEY = os.environ.get('INFISQ_WA_API_KEY', 'JD5zTemEWj0UX4IBV2oRanlqH')
+
 # OpenRouter / AI Settings
 OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
 OPENROUTER_MODEL = os.environ.get('OPENROUTER_MODEL', 'openai/gpt-oss-20b')

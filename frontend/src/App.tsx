@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { Layout } from './components/Layout';
+import { LandingView } from './views/LandingView';
 import { LoginView } from './views/LoginView';
+import { RegisterView } from './views/RegisterView';
 import { OverviewView } from './views/OverviewView';
 import { ClientsView } from './views/ClientsView';
 import { WhatsAppAccountsView } from './views/WhatsAppAccountsView';
@@ -16,7 +19,8 @@ import { TransactionsView } from './views/TransactionsView';
 import { ApiWebhooksView } from './views/ApiWebhooksView';
 import { SettingsView } from './views/SettingsView';
 
-export const AppContent: React.FC = () => {
+// Protected Dashboard Component
+const DashboardApp: React.FC = () => {
   const { user, loading } = useAuth();
   const [currentTab, setCurrentTab] = useState('overview');
 
@@ -33,7 +37,7 @@ export const AppContent: React.FC = () => {
   }
 
   if (!user) {
-    return <LoginView />;
+    return <Navigate to="/login" replace />;
   }
 
   return (
@@ -52,6 +56,37 @@ export const AppContent: React.FC = () => {
       {currentTab === 'webhooks' && <ApiWebhooksView />}
       {currentTab === 'settings' && <SettingsView />}
     </Layout>
+  );
+};
+
+export const AppContent: React.FC = () => {
+  const { user } = useAuth();
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Public Landing Home */}
+        <Route path="/" element={<LandingView />} />
+
+        {/* Dedicated Separate Login Page */}
+        <Route
+          path="/login"
+          element={user ? <Navigate to="/dashboard" replace /> : <LoginView />}
+        />
+
+        {/* Dedicated Separate Register Page */}
+        <Route
+          path="/register"
+          element={user ? <Navigate to="/dashboard" replace /> : <RegisterView />}
+        />
+
+        {/* Protected SaaS Multi-Tenant Dashboard */}
+        <Route path="/dashboard" element={<DashboardApp />} />
+
+        {/* Fallback Catch-all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 };
 

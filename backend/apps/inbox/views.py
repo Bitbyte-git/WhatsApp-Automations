@@ -14,6 +14,7 @@ from apps.inbox.serializers import (
 )
 from apps.whatsapp.models import WhatsAppAccount
 from apps.whatsapp.meta_client import MetaCloudAPIClient
+from apps.whatsapp.infisq_client import InfisqWhatsAppClient
 from apps.billing.models import Wallet, WalletTransaction, UsageRecord
 
 class ContactViewSet(viewsets.ModelViewSet):
@@ -219,24 +220,40 @@ class SendMessageView(views.APIView):
                 'required': str(rate)
             }, status=status.HTTP_402_PAYMENT_REQUIRED)
 
-        # Meta Cloud API Execution
+        # Dispatch real message via Meta Cloud API or Infisq WhatsApp Gateway
         meta_client = MetaCloudAPIClient(
             phone_number_id=whatsapp_account.phone_number_id,
             access_token=whatsapp_account.access_token,
             waba_id=whatsapp_account.waba_id
         )
+        infisq_client = InfisqWhatsAppClient()
 
-        if not meta_client.is_configured:
+        send_result = None
+        gateway_provider = 'META'
+
+        if meta_client.is_configured:
+            gateway_provider = 'META'
+            send_result = meta_client.send_text_message(
+                to_phone_number=contact.phone_number,
+                text_content=content
+            )
+        elif infisq_client.is_configured:
+            gateway_provider = 'INFISQ'
+            inf_res = infisq_client.send_text_message(
+                contact=contact.phone_number,
+                message=content
+            )
+            send_result = {
+                'success': inf_res.get('success', False),
+                'wamid': f"INFISQ-{int(timezone.now().timestamp())}",
+                'data': {'gateway': 'wa.infisq.com', 'raw': inf_res.get('response', '')},
+                'error': inf_res.get('error', 'Gateway response status not 200')
+            }
+        else:
             return Response({
-                'error': 'WhatsApp integration is not configured. Missing Meta credentials or Phone Number ID.',
+                'error': 'WhatsApp integration is not configured. Missing Meta credentials or Infisq Gateway API key.',
                 'configured': False
             }, status=status.HTTP_400_BAD_REQUEST)
-
-        # Dispatch real message to Meta Cloud API
-        send_result = meta_client.send_text_message(
-            to_phone_number=contact.phone_number,
-            text_content=content
-        )
 
         now = timezone.now()
         if send_result.get('success'):

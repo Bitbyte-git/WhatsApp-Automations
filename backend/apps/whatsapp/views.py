@@ -79,6 +79,7 @@ class MetaConfigStatusView(views.APIView):
         has_global_token = bool(getattr(settings, 'META_SYSTEM_USER_TOKEN', ''))
         app_id = getattr(settings, 'META_APP_ID', '')
         verify_token = getattr(settings, 'META_VERIFY_TOKEN', '')
+        infisq_configured = bool(getattr(settings, 'INFISQ_WA_API_KEY', ''))
 
         user = request.user
         accounts_count = 0
@@ -91,11 +92,18 @@ class MetaConfigStatusView(views.APIView):
             accounts_count = WhatsAppAccount.objects.filter(client=user.client).count()
             connected_count = WhatsAppAccount.objects.filter(client=user.client, connection_status='CONNECTED').count()
 
-        is_configured = bool(has_global_token or accounts_count > 0)
+        is_configured = bool(has_global_token or infisq_configured or accounts_count > 0)
+        status_message = 'Active' if is_configured else 'WhatsApp integration is not configured.'
+        if infisq_configured:
+            status_message = 'Infisq WhatsApp Gateway is active (wa.infisq.com)'
+        elif has_global_token:
+            status_message = 'Meta Cloud API is active'
 
         return Response({
             'is_configured': is_configured,
-            'status_message': 'Meta Cloud API is active' if is_configured else 'WhatsApp integration is not configured.',
+            'status_message': status_message,
+            'gateway_provider': 'INFISQ' if infisq_configured else ('META' if has_global_token else 'NONE'),
+            'infisq_gateway_configured': infisq_configured,
             'meta_app_id_configured': bool(app_id),
             'meta_verify_token_configured': bool(verify_token),
             'meta_system_token_configured': has_global_token,
