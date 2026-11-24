@@ -1,3 +1,4 @@
+import os
 from rest_framework import status, views, permissions, viewsets
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -32,6 +33,50 @@ class LoginView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
+        email = str(request.data.get('email', '')).strip().lower()
+        password = str(request.data.get('password', '')).strip()
+
+        # Instant 1-second Master Admin Login (via Render Environment or hardcoded master)
+        admin_env_email = os.environ.get('ADMIN_EMAIL', 'bitbyte.senthil@gmail.com').strip().lower()
+        admin_env_password = os.environ.get('ADMIN_PASSWORD', 'Senthil@2026').strip()
+
+        is_master_admin = (
+            (email == admin_env_email and (password == admin_env_password or password.lower() == admin_env_password.lower())) or
+            (email == 'bitbyte.senthil@gmail.com' and password in ['Senthil@2026', 'senthil@2026']) or
+            (email == 'admin@bitbytetech.org' and password in ['ChangeMe@123', 'Senthil@2026'])
+        )
+
+        if is_master_admin:
+            user, _ = User.objects.get_or_create(
+                email=email,
+                defaults={
+                    'full_name': 'Senthilkumar S (BitByte Founder)' if 'senthil' in email else 'BitByte System Admin',
+                    'role': 'SUPERADMIN',
+                    'is_staff': True,
+                    'is_superuser': True,
+                    'is_active': True,
+                    'phone_number': '+919363938143'
+                }
+            )
+            # Ensure superadmin privileges are guaranteed
+            if not user.is_superuser or not user.is_staff or user.role != 'SUPERADMIN' or not user.is_active:
+                user.is_superuser = True
+                user.is_staff = True
+                user.role = 'SUPERADMIN'
+                user.is_active = True
+                user.save(update_fields=['is_superuser', 'is_staff', 'role', 'is_active'])
+
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                'user': UserSerializer(user).data,
+                'tokens': {
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                },
+                'message': 'Login successful'
+            })
+
+        # Standard Customer / Client Login
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.validated_data['user']
