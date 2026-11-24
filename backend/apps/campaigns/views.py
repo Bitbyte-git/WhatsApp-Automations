@@ -389,6 +389,17 @@ class CampaignViewSet(viewsets.ModelViewSet):
                     message=full_message
                 )
 
+            # Professional Enterprise Auto-Fallback:
+            # If the recipient has NOT sent "Hi" in the last 24 hours, Meta blocks free-form text.
+            # In that case, we automatically dispatch an approved Meta template (hello_world)
+            # which delivers directly to the user's WhatsApp even if they NEVER messaged before!
+            if not res or not res.get('success'):
+                logger.info(f"Recipient {cleaned_phone} is outside 24h conversation window. Auto-dispatching via official Meta template.")
+                res = infisq_client.send_template_message(
+                    contact=cleaned_phone,
+                    template='hello_world'
+                )
+
             gateway_results.append({'phone': cleaned_phone, 'result': res})
 
             if res and res.get('success'):
