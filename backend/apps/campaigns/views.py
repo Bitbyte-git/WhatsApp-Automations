@@ -288,15 +288,16 @@ class CampaignViewSet(viewsets.ModelViewSet):
         if not recipients_list:
             return Response({'error': 'No eligible contacts found to broadcast. Please add contacts or enter a phone number.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check gateway configuration
+        # Check gateway configuration (Priority: Direct Meta Cloud API, Fallback: Infisq)
+        meta_client = MetaCloudAPIClient()
         infisq_client = InfisqWhatsAppClient()
-        if not infisq_client.is_configured:
+        if not meta_client.is_configured and not infisq_client.is_configured:
             return Response({
-                'error': 'WhatsApp Gateway is not configured. Missing Infisq API credentials.',
+                'error': 'WhatsApp Gateway is not configured. Missing Meta credentials and Infisq API key.',
                 'configured': False
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Platform Superadmin has direct unlimited gateway access (1500+ credits on Infisq)
+        # Platform Superadmin has direct unlimited gateway access
         is_free_test = (recipient_type == 'TEST' and len(recipients_list) == 1) or user.is_superadmin
         rate_per_msg = Decimal('0.8500')
         required_funds = Decimal('0.0000') if is_free_test else (rate_per_msg * len(recipients_list))
@@ -326,12 +327,12 @@ class CampaignViewSet(viewsets.ModelViewSet):
         account = WhatsAppAccount.objects.filter(client=client).first()
         if not account:
             account, _ = WhatsAppAccount.objects.get_or_create(
-                phone_number_id=f"infisq-gateway-{client.id}",
+                phone_number_id=f"direct-meta-{client.id}" if meta_client.is_configured else f"infisq-gateway-{client.id}",
                 defaults={
                     'client': client,
                     'business_name': f"{client.name} Official Gateway",
-                    'phone_number': "+919363938143",
-                    'waba_id': f"infisq-waba-{client.id}",
+                    'phone_number': "+15551479144" if meta_client.is_configured else "+919363938143",
+                    'waba_id': getattr(settings, 'META_WABA_ID', '') or f"waba-{client.id}",
                     'connection_status': "CONNECTED",
                     'account_status': "ACTIVE"
                 }
@@ -368,27 +369,46 @@ class CampaignViewSet(viewsets.ModelViewSet):
             cleaned_phone = infisq_client._normalize_phone(phone)
             res = None
 
-            # Dispatch the EXACT message and action buttons entered by the admin in the dashboard
-            if button_str:
-                res = infisq_client.send_button_message(
-                    contact=cleaned_phone,
-                    message=message_body,
-                    button=button_str,
-                    header_type='text',
-                    header_text=header_text or service_name,
-                    footer_text=footer_text
-                )
-
-            # If button sending failed or no buttons configured, dispatch clean rich text message
-            if not res or not res.get('success'):
+            if meta_client.is_configured:
+                # Direct Meta Cloud API Dispatch (Method 2)
                 formatted_body = message_body
                 if button_labels:
                     formatted_body += "\n\n*Quick Actions:*\n" + "\n".join([f"[{i+1}] {btn}" for i, btn in enumerate(button_labels)])
                 full_message = f"*{header_text or service_name}*\n\n{formatted_body}\n\n_{footer_text}_"
-                res = infisq_client.send_text_message(
-                    contact=cleaned_phone,
-                    message=full_message
+
+                res = meta_client.send_text_message(
+                    to_phone_number=cleaned_phone,
+                    text_content=full_message
                 )
+
+                # If direct text rejected by Meta (cold lead outside 24h window), send official Meta template
+                if not res.get('success'):
+                    res = meta_client.send_template_message(
+                        to_phone_number=cleaned_phone,
+                        template_name='hello_world',
+                        language_code='en_US'
+                    )
+            else:
+                # Infisq Gateway Dispatch (TenDigit Method 1 - Saved)
+                if button_str:
+                    res = infisq_client.send_button_message(
+                        contact=cleaned_phone,
+                        message=message_body,
+                        button=button_str,
+                        header_type='text',
+                        header_text=header_text or service_name,
+                        footer_text=footer_text
+                    )
+
+                if not res or not res.get('success'):
+                    formatted_body = message_body
+                    if button_labels:
+                        formatted_body += "\n\n*Quick Actions:*\n" + "\n".join([f"[{i+1}] {btn}" for i, btn in enumerate(button_labels)])
+                    full_message = f"*{header_text or service_name}*\n\n{formatted_body}\n\n_{footer_text}_"
+                    res = infisq_client.send_text_message(
+                        contact=cleaned_phone,
+                        message=full_message
+                    )
 
             gateway_results.append({'phone': cleaned_phone, 'result': res})
 

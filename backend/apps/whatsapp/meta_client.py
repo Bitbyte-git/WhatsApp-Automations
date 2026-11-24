@@ -11,9 +11,9 @@ class MetaCloudAPIClient:
     Interacts with Meta Graph API endpoints for messages, templates, and phone numbers.
     """
     def __init__(self, phone_number_id=None, access_token=None, waba_id=None):
-        self.phone_number_id = phone_number_id
+        self.phone_number_id = phone_number_id or getattr(settings, 'META_PHONE_NUMBER_ID', '')
         self.access_token = access_token or getattr(settings, 'META_SYSTEM_USER_TOKEN', '')
-        self.waba_id = waba_id
+        self.waba_id = waba_id or getattr(settings, 'META_WABA_ID', '')
         self.graph_version = getattr(settings, 'META_GRAPH_API_VERSION', 'v21.0')
         self.base_url = f"https://graph.facebook.com/{self.graph_version}"
 

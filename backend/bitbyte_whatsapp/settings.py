@@ -201,6 +201,8 @@ META_VERIFY_TOKEN = os.environ.get('META_VERIFY_TOKEN', 'bitbyte_whatsapp_webhoo
 META_GRAPH_API_VERSION = os.environ.get('META_GRAPH_API_VERSION', 'v21.0')
 META_GRAPH_URL = f"https://graph.facebook.com/{META_GRAPH_API_VERSION}"
 META_SYSTEM_USER_TOKEN = os.environ.get('META_SYSTEM_USER_TOKEN', '')
+META_PHONE_NUMBER_ID = os.environ.get('META_PHONE_NUMBER_ID', '')
+META_WABA_ID = os.environ.get('META_WABA_ID', '')
 
 # Infisq WhatsApp Gateway Settings
 INFISQ_WA_BASE_URL = os.environ.get('INFISQ_WA_BASE_URL', 'https://wa.infisq.com/api')
