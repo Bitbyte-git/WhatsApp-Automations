@@ -409,19 +409,22 @@ class CampaignViewSet(viewsets.ModelViewSet):
                 # No active session (recipient never sent 'Hi'):
                 # Meta Cloud API strictly drops non-template messages.
                 # Deliver directly via Meta Approved Template from Infisq (Bonus_new) so message arrives!
-                logger.info(f"Recipient {cleaned_phone} has not sent 'Hi' (outside 24h window). Dispatching approved Infisq template Bonus_new.")
+                # Note: Bonus_new requires exactly 2 parameters ({{1}} Name, {{2}} Offer/Topic)
+                template_param = f"Customer,{service_name or 'Special Offer'}"
+                logger.info(f"Recipient {cleaned_phone} has not sent 'Hi' (outside 24h window). Dispatching approved Infisq template Bonus_new with params: {template_param}")
                 res = infisq_client.send_template_message(
                     contact=cleaned_phone,
                     template='Bonus_new',
-                    param='Customer'
+                    param=template_param
                 )
 
             # Final safety fallback if button/text encountered any issue
             if not res or not res.get('success'):
+                template_param = f"Customer,{service_name or 'Special Offer'}"
                 res = infisq_client.send_template_message(
                     contact=cleaned_phone,
                     template='Bonus_new',
-                    param='Customer'
+                    param=template_param
                 )
 
             gateway_results.append({'phone': cleaned_phone, 'result': res, 'is_active_session': is_active_session})
