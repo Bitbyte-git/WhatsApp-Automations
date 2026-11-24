@@ -181,27 +181,35 @@ export const CampaignsView: React.FC = () => {
         <div>
           <div className="flex items-center space-x-2">
             <span className="px-2.5 py-1 text-[11px] font-bold uppercase rounded-md bg-emerald-50 text-[#075E54] border border-emerald-200">
-              WhatsApp Broadcast Engine
+              {user?.role === 'SUPERADMIN' ? '👑 Admin Official WhatsApp Sender' : 'WhatsApp Broadcast Engine'}
             </span>
             <span className="text-xs text-slate-400 font-medium">•</span>
-            <span className="text-xs text-slate-600 font-semibold">{user?.client_details?.name || 'My Organization'}</span>
+            <span className="text-xs text-slate-600 font-semibold">
+              {user?.role === 'SUPERADMIN' ? 'BitByte Technologies (+91 9363938143)' : (user?.client_details?.name || 'My Organization')}
+            </span>
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-1.5">
-            Broadcast Campaigns
+            {user?.role === 'SUPERADMIN' ? 'Admin Marketing Broadcast Engine' : 'Broadcast Campaigns'}
           </h1>
           <p className="text-xs text-slate-500 mt-1 max-w-2xl">
-            Create real marketing announcements, add action buttons, and dispatch to your customer audience.
+            {user?.role === 'SUPERADMIN'
+              ? 'Send WhatsApp marketing messages directly from the Admin Official WhatsApp Number (+91 9363938143) to any customer or contact.'
+              : 'Create real marketing announcements, add action buttons, and dispatch to your customer audience.'}
           </p>
         </div>
 
-        {/* Live Wallet Balance Pill */}
+        {/* Live Status Pill */}
         <div className="flex items-center space-x-3 bg-emerald-50/80 border border-emerald-200 p-3 rounded-xl shrink-0">
           <div className="w-10 h-10 rounded-lg bg-[#075E54] text-white flex items-center justify-center shadow-xs">
-            <Wallet className="w-5 h-5 text-[#25D366]" />
+            <Smartphone className="w-5 h-5 text-[#25D366]" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-[#075E54]">Wallet Balance</p>
-            <p className="text-lg font-black text-slate-900">₹{parseFloat(walletBalance).toFixed(2)}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#075E54]">
+              {user?.role === 'SUPERADMIN' ? 'Admin Gateway Status' : 'Wallet Balance'}
+            </p>
+            <p className="text-base font-black text-slate-900">
+              {user?.role === 'SUPERADMIN' ? '+91 9363938143 (Active)' : `₹${parseFloat(walletBalance).toFixed(2)}`}
+            </p>
           </div>
         </div>
       </div>
@@ -374,12 +382,16 @@ export const CampaignsView: React.FC = () => {
                 onClick={() => setDeliveryMode('TEST')}
                 className={`p-3 rounded-xl border text-left transition-all ${
                   deliveryMode === 'TEST'
-                    ? 'border-amber-400 bg-amber-50/60 ring-1 ring-amber-400'
+                    ? 'border-emerald-500 bg-emerald-50/60 ring-1 ring-emerald-500'
                     : 'border-slate-200 bg-white hover:bg-slate-50'
                 }`}
               >
-                <p className="text-xs font-bold text-amber-900">⚡ Single Test</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">Test on own phone</p>
+                <p className="text-xs font-bold text-emerald-950">
+                  {user?.role === 'SUPERADMIN' ? '📱 Specific Number' : '⚡ Single Test'}
+                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {user?.role === 'SUPERADMIN' ? 'Send to entered customer phone' : 'Test on own phone'}
+                </p>
               </button>
             </div>
 
@@ -402,12 +414,17 @@ export const CampaignsView: React.FC = () => {
               </div>
             )}
 
-            {/* Single Test Number Input */}
+            {/* Single Test / Specific Number Input */}
             {deliveryMode === 'TEST' && (
-              <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-200 space-y-1.5">
-                <label className="block text-xs font-bold text-amber-900 uppercase tracking-wider">
-                  Enter Test WhatsApp Number
-                </label>
+              <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-emerald-900 uppercase tracking-wider">
+                    {user?.role === 'SUPERADMIN' ? 'Enter Target WhatsApp Number *' : 'Enter Test WhatsApp Number *'}
+                  </label>
+                  <span className="text-[11px] font-semibold text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200">
+                    Sender: +91 9363938143
+                  </span>
+                </div>
                 <div className="flex items-center space-x-2">
                   <span className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600">
                     +91
@@ -416,10 +433,15 @@ export const CampaignsView: React.FC = () => {
                     type="text"
                     value={testPhoneNumber}
                     onChange={(e) => setTestPhoneNumber(e.target.value)}
-                    placeholder="Enter 10-digit phone number"
-                    className="flex-1 px-3 py-2 text-xs font-bold border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54] bg-white"
+                    placeholder="Enter 10-digit mobile number"
+                    className="flex-1 px-3 py-2 text-xs font-bold border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54] bg-white text-slate-900"
                   />
                 </div>
+                <p className="text-[11px] text-emerald-800">
+                  {user?.role === 'SUPERADMIN'
+                    ? 'This WhatsApp marketing message will be dispatched directly from Admin Official WhatsApp (+91 9363938143).'
+                    : 'Test this offer on your personal mobile before sending to all contacts.'}
+                </p>
               </div>
             )}
 
@@ -458,7 +480,9 @@ export const CampaignsView: React.FC = () => {
                   <Send className="w-5 h-5" />
                   <span>
                     {deliveryMode === 'TEST'
-                      ? `⚡ Send Test Message to +91 ${testPhoneNumber || 'Phone'}`
+                      ? (user?.role === 'SUPERADMIN'
+                          ? `🚀 Send WhatsApp Message from Admin to +91 ${testPhoneNumber || '...'}`
+                          : `⚡ Send Test Message to +91 ${testPhoneNumber || 'Phone'}`)
                       : deliveryMode === 'CUSTOM_COUNT'
                       ? `🚀 Send Marketing Offer to ${Math.min(customSendCount, contacts.length || customSendCount)} Contacts`
                       : `🚀 Send Marketing Offer to ALL ${contacts.length} Contacts`}
@@ -485,11 +509,15 @@ export const CampaignsView: React.FC = () => {
               <div className="bg-[#075E54] text-white px-4 py-3 flex items-center justify-between shadow-xs">
                 <div className="flex items-center space-x-2.5">
                   <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-extrabold text-xs">
-                    {(user?.client_details?.name || 'WA').slice(0, 2).toUpperCase()}
+                    {user?.role === 'SUPERADMIN' ? 'BB' : (user?.client_details?.name || 'WA').slice(0, 2).toUpperCase()}
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold leading-tight">{user?.client_details?.name || 'Business Account'}</h4>
-                    <p className="text-[10px] text-emerald-200">Official WhatsApp</p>
+                    <h4 className="text-xs font-bold leading-tight">
+                      {user?.role === 'SUPERADMIN' ? 'BitByte Official (+91 9363938143)' : (user?.client_details?.name || 'Business Account')}
+                    </h4>
+                    <p className="text-[10px] text-emerald-200">
+                      {user?.role === 'SUPERADMIN' ? 'Admin Verified Gateway' : 'Official WhatsApp'}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 text-white/80 text-xs">

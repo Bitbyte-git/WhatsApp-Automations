@@ -32,7 +32,7 @@ export const LoginView: React.FC = () => {
 
     try {
       const res = await api.login({
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         password: password,
       });
       login(res.tokens.access, res.tokens.refresh, res.user);

@@ -248,7 +248,10 @@ class CampaignViewSet(viewsets.ModelViewSet):
                 client = Client.objects.first()
 
         if not client:
-            return Response({'error': 'No active client tenant found.'}, status=status.HTTP_400_BAD_REQUEST)
+            client, _ = Client.objects.get_or_create(
+                name='BitByte Technologies',
+                defaults={'slug': 'bitbyte-technologies', 'status': 'ACTIVE', 'phone_number': '+919363938143'}
+            )
 
         data = request.data
         recipient_type = data.get('recipient_type', 'TEST')  # 'TEST' or 'AUDIENCE'
@@ -290,7 +293,8 @@ class CampaignViewSet(viewsets.ModelViewSet):
                 'configured': False
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        is_free_test = (recipient_type == 'TEST' and len(recipients_list) == 1)
+        # Platform Superadmin has direct unlimited gateway access (1500+ credits on Infisq)
+        is_free_test = (recipient_type == 'TEST' and len(recipients_list) == 1) or user.is_superadmin
         rate_per_msg = Decimal('0.8500')
         required_funds = Decimal('0.0000') if is_free_test else (rate_per_msg * len(recipients_list))
 
