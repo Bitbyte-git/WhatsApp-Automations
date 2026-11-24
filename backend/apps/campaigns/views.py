@@ -368,9 +368,21 @@ class CampaignViewSet(viewsets.ModelViewSet):
             cleaned_phone = infisq_client._normalize_phone(phone)
             res = None
 
-            # Professional Check: Does recipient have an active 24-hr session (i.e. sent 'Hi' recently)?
+            # Check if recipient has an active 24-hr session (i.e. sent 'Hi' recently)
+            # 1. Local database check
+            recent_inbound = Message.objects.filter(
+                contact__phone_number__endswith=cleaned_phone[-10:],
+                direction='INBOUND',
+                created_at__gte=timezone.now() - timezone.timedelta(hours=24)
+            ).exists()
+
+            # 2. Gateway validity check
             conv_status = infisq_client.check_conversation_validity(cleaned_phone)
-            is_active_session = conv_status.get('success', False)
+            raw_conv = str(conv_status.get('response', '')).lower()
+            gateway_active = conv_status.get('success', False) and ('invalid' not in raw_conv and 'expired' not in raw_conv and 'not active' not in raw_conv)
+
+            # Recipient is active only if recent inbound exists or gateway explicitly confirms
+            is_active_session = recent_inbound or (gateway_active and ('active' in raw_conv or 'valid' in raw_conv))
 
             if is_active_session:
                 # 24-Hour window active: send rich interactive button message or custom text
@@ -396,18 +408,20 @@ class CampaignViewSet(viewsets.ModelViewSet):
             else:
                 # No active session (recipient never sent 'Hi'):
                 # Meta Cloud API strictly drops non-template messages.
-                # Deliver directly via Meta Approved Template (hello_world) so message arrives!
-                logger.info(f"Recipient {cleaned_phone} has not sent 'Hi' (outside 24h window). Dispatching official Meta template.")
+                # Deliver directly via Meta Approved Template from Infisq (Bonus_new) so message arrives!
+                logger.info(f"Recipient {cleaned_phone} has not sent 'Hi' (outside 24h window). Dispatching approved Infisq template Bonus_new.")
                 res = infisq_client.send_template_message(
                     contact=cleaned_phone,
-                    template='hello_world'
+                    template='Bonus_new',
+                    param='Customer'
                 )
 
             # Final safety fallback if button/text encountered any issue
             if not res or not res.get('success'):
                 res = infisq_client.send_template_message(
                     contact=cleaned_phone,
-                    template='hello_world'
+                    template='Bonus_new',
+                    param='Customer'
                 )
 
             gateway_results.append({'phone': cleaned_phone, 'result': res, 'is_active_session': is_active_session})
