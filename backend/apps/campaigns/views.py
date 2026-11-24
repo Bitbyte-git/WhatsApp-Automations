@@ -322,24 +322,29 @@ class CampaignViewSet(viewsets.ModelViewSet):
         # Ensure account & template exist for foreign key compliance
         account = WhatsAppAccount.objects.filter(client=client).first()
         if not account:
-            account = WhatsAppAccount.objects.create(
-                client=client,
-                name=f"{client.name} Gateway",
-                phone_number="+919363938143",
-                phone_number_id="infisq-default",
-                waba_id="infisq-default",
-                connection_status="CONNECTED"
+            account, _ = WhatsAppAccount.objects.get_or_create(
+                phone_number_id=f"infisq-gateway-{client.id}",
+                defaults={
+                    'client': client,
+                    'business_name': f"{client.name} Official Gateway",
+                    'phone_number': "+919363938143",
+                    'waba_id': f"infisq-waba-{client.id}",
+                    'connection_status': "CONNECTED",
+                    'account_status': "ACTIVE"
+                }
             )
 
         template = MessageTemplate.objects.filter(client=client).first()
         if not template:
-            template = MessageTemplate.objects.create(
+            template, _ = MessageTemplate.objects.get_or_create(
                 client=client,
                 name="quick_service_broadcast",
-                category="MARKETING",
-                language="en_US",
-                body_text=message_body,
-                status="APPROVED"
+                defaults={
+                    'category': "MARKETING",
+                    'language': "en_US",
+                    'body_text': message_body,
+                    'status': "APPROVED"
+                }
             )
 
         campaign_name = f"{service_name} {'Free Test' if is_free_test else 'Blast'} - {timezone.now().strftime('%d %b %H:%M')}"

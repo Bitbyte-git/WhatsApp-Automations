@@ -71,7 +71,16 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 
   if (!response.ok) {
-    const errorMsg = data?.error || data?.detail || data?.message || (typeof data === 'string' ? data : 'API Request failed');
+    let errorMsg = data?.error || data?.detail || data?.message;
+    if (!errorMsg) {
+      if (typeof data === 'string' && data.includes('<html')) {
+        errorMsg = `Server error (${response.status}). The backend encountered an unexpected error.`;
+      } else if (typeof data === 'string') {
+        errorMsg = data;
+      } else {
+        errorMsg = 'API Request failed';
+      }
+    }
     throw new ApiError(errorMsg, response.status, data);
   }
 
