@@ -1,8 +1,11 @@
+import logging
 from rest_framework import viewsets, permissions, filters, status, views
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils import timezone
 from decimal import Decimal
+
+logger = logging.getLogger(__name__)
 
 from apps.campaigns.models import Campaign, CampaignRecipient
 from apps.campaigns.serializers import (
@@ -388,7 +391,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
 
             gateway_results.append({'phone': cleaned_phone, 'result': res})
 
-            if res.get('success'):
+            if res and res.get('success'):
                 sent_count += 1
                 if not is_free_test:
                     wallet.balance -= rate_per_msg
@@ -414,7 +417,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
 
         last_error = None
         if gateway_results:
-            last_res = gateway_results[0].get('result', {})
+            last_res = gateway_results[0].get('result') or {}
             if not last_res.get('success'):
                 last_error = last_res.get('error') or last_res.get('response')
 
