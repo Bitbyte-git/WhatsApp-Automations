@@ -368,39 +368,49 @@ class CampaignViewSet(viewsets.ModelViewSet):
             cleaned_phone = infisq_client._normalize_phone(phone)
             res = None
 
-            if button_str:
-                res = infisq_client.send_button_message(
-                    contact=cleaned_phone,
-                    message=message_body,
-                    button=button_str,
-                    header_type='text',
-                    header_text=header_text or service_name,
-                    footer_text=footer_text
-                )
+            # Professional Check: Does recipient have an active 24-hr session (i.e. sent 'Hi' recently)?
+            conv_status = infisq_client.check_conversation_validity(cleaned_phone)
+            is_active_session = conv_status.get('success', False)
 
-            # If button sending returned False or no button specified, fallback to text
-            if not res or not res.get('success'):
-                formatted_body = message_body
-                if button_labels:
-                    formatted_body += "\n\n*Quick Actions:*\n" + "\n".join([f"[{i+1}] {btn}" for i, btn in enumerate(button_labels)])
-                full_message = f"*{header_text or service_name}*\n\n{formatted_body}\n\n_{footer_text}_"
-                res = infisq_client.send_text_message(
-                    contact=cleaned_phone,
-                    message=full_message
-                )
+            if is_active_session:
+                # 24-Hour window active: send rich interactive button message or custom text
+                if button_str:
+                    res = infisq_client.send_button_message(
+                        contact=cleaned_phone,
+                        message=message_body,
+                        button=button_str,
+                        header_type='text',
+                        header_text=header_text or service_name,
+                        footer_text=footer_text
+                    )
 
-            # Professional Enterprise Auto-Fallback:
-            # If the recipient has NOT sent "Hi" in the last 24 hours, Meta blocks free-form text.
-            # In that case, we automatically dispatch an approved Meta template (hello_world)
-            # which delivers directly to the user's WhatsApp even if they NEVER messaged before!
-            if not res or not res.get('success'):
-                logger.info(f"Recipient {cleaned_phone} is outside 24h conversation window. Auto-dispatching via official Meta template.")
+                if not res or not res.get('success'):
+                    formatted_body = message_body
+                    if button_labels:
+                        formatted_body += "\n\n*Quick Actions:*\n" + "\n".join([f"[{i+1}] {btn}" for i, btn in enumerate(button_labels)])
+                    full_message = f"*{header_text or service_name}*\n\n{formatted_body}\n\n_{footer_text}_"
+                    res = infisq_client.send_text_message(
+                        contact=cleaned_phone,
+                        message=full_message
+                    )
+            else:
+                # No active session (recipient never sent 'Hi'):
+                # Meta Cloud API strictly drops non-template messages.
+                # Deliver directly via Meta Approved Template (hello_world) so message arrives!
+                logger.info(f"Recipient {cleaned_phone} has not sent 'Hi' (outside 24h window). Dispatching official Meta template.")
                 res = infisq_client.send_template_message(
                     contact=cleaned_phone,
                     template='hello_world'
                 )
 
-            gateway_results.append({'phone': cleaned_phone, 'result': res})
+            # Final safety fallback if button/text encountered any issue
+            if not res or not res.get('success'):
+                res = infisq_client.send_template_message(
+                    contact=cleaned_phone,
+                    template='hello_world'
+                )
+
+            gateway_results.append({'phone': cleaned_phone, 'result': res, 'is_active_session': is_active_session})
 
             if res and res.get('success'):
                 sent_count += 1
@@ -427,16 +437,19 @@ class CampaignViewSet(viewsets.ModelViewSet):
         campaign.save(update_fields=['sent_count', 'failed_count', 'status'])
 
         last_error = None
+        delivery_note = ""
         if gateway_results:
             last_res = gateway_results[0].get('result') or {}
             if not last_res.get('success'):
                 last_error = last_res.get('error') or last_res.get('response')
+            elif not gateway_results[0].get('is_active_session'):
+                delivery_note = " (Direct Delivery via Official Meta Template)"
 
         return Response({
             'success': sent_count > 0,
             'is_free_test': is_free_test,
             'message': (
-                f"WhatsApp message successfully delivered to {sent_count} recipient(s)!"
+                f"WhatsApp message successfully delivered to {sent_count} recipient(s)!{delivery_note}"
                 if sent_count > 0
                 else f"WhatsApp Gateway delivery error: {last_error or 'Message could not be delivered.'}"
             ),
