@@ -368,66 +368,29 @@ class CampaignViewSet(viewsets.ModelViewSet):
             cleaned_phone = infisq_client._normalize_phone(phone)
             res = None
 
-            # Check if recipient has an active 24-hr session (i.e. sent 'Hi' recently)
-            # 1. Local database check
-            recent_inbound = Message.objects.filter(
-                contact__phone_number__endswith=cleaned_phone[-10:],
-                direction='INBOUND',
-                created_at__gte=timezone.now() - timezone.timedelta(hours=24)
-            ).exists()
-
-            # 2. Gateway validity check
-            conv_status = infisq_client.check_conversation_validity(cleaned_phone)
-            raw_conv = str(conv_status.get('response', '')).lower()
-            gateway_active = conv_status.get('success', False) and ('invalid' not in raw_conv and 'expired' not in raw_conv and 'not active' not in raw_conv)
-
-            # Recipient is active only if recent inbound exists or gateway explicitly confirms
-            is_active_session = recent_inbound or (gateway_active and ('active' in raw_conv or 'valid' in raw_conv))
-
-            if is_active_session:
-                # 24-Hour window active: send rich interactive button message or custom text
-                if button_str:
-                    res = infisq_client.send_button_message(
-                        contact=cleaned_phone,
-                        message=message_body,
-                        button=button_str,
-                        header_type='text',
-                        header_text=header_text or service_name,
-                        footer_text=footer_text
-                    )
-
-                if not res or not res.get('success'):
-                    formatted_body = message_body
-                    if button_labels:
-                        formatted_body += "\n\n*Quick Actions:*\n" + "\n".join([f"[{i+1}] {btn}" for i, btn in enumerate(button_labels)])
-                    full_message = f"*{header_text or service_name}*\n\n{formatted_body}\n\n_{footer_text}_"
-                    res = infisq_client.send_text_message(
-                        contact=cleaned_phone,
-                        message=full_message
-                    )
-            else:
-                # No active session (recipient never sent 'Hi'):
-                # Meta Cloud API strictly drops non-template messages.
-                # Deliver directly via Meta Approved Template from Infisq (Bonus_new) so message arrives!
-                # Note: Bonus_new requires exactly 2 parameters ({{1}} Name, {{2}} Offer/Topic)
-                template_param = f"Customer,{service_name or 'Special Offer'}"
-                logger.info(f"Recipient {cleaned_phone} has not sent 'Hi' (outside 24h window). Dispatching approved Infisq template Bonus_new with params: {template_param}")
-                res = infisq_client.send_template_message(
+            # Dispatch the EXACT message and action buttons entered by the admin in the dashboard
+            if button_str:
+                res = infisq_client.send_button_message(
                     contact=cleaned_phone,
-                    template='Bonus_new',
-                    param=template_param
+                    message=message_body,
+                    button=button_str,
+                    header_type='text',
+                    header_text=header_text or service_name,
+                    footer_text=footer_text
                 )
 
-            # Final safety fallback if button/text encountered any issue
+            # If button sending failed or no buttons configured, dispatch clean rich text message
             if not res or not res.get('success'):
-                template_param = f"Customer,{service_name or 'Special Offer'}"
-                res = infisq_client.send_template_message(
+                formatted_body = message_body
+                if button_labels:
+                    formatted_body += "\n\n*Quick Actions:*\n" + "\n".join([f"[{i+1}] {btn}" for i, btn in enumerate(button_labels)])
+                full_message = f"*{header_text or service_name}*\n\n{formatted_body}\n\n_{footer_text}_"
+                res = infisq_client.send_text_message(
                     contact=cleaned_phone,
-                    template='Bonus_new',
-                    param=template_param
+                    message=full_message
                 )
 
-            gateway_results.append({'phone': cleaned_phone, 'result': res, 'is_active_session': is_active_session})
+            gateway_results.append({'phone': cleaned_phone, 'result': res})
 
             if res and res.get('success'):
                 sent_count += 1
@@ -454,19 +417,16 @@ class CampaignViewSet(viewsets.ModelViewSet):
         campaign.save(update_fields=['sent_count', 'failed_count', 'status'])
 
         last_error = None
-        delivery_note = ""
         if gateway_results:
             last_res = gateway_results[0].get('result') or {}
             if not last_res.get('success'):
                 last_error = last_res.get('error') or last_res.get('response')
-            elif not gateway_results[0].get('is_active_session'):
-                delivery_note = " (Direct Delivery via Official Meta Template)"
 
         return Response({
             'success': sent_count > 0,
             'is_free_test': is_free_test,
             'message': (
-                f"WhatsApp message successfully delivered to {sent_count} recipient(s)!{delivery_note}"
+                f"WhatsApp message successfully delivered to {sent_count} recipient(s)!"
                 if sent_count > 0
                 else f"WhatsApp Gateway delivery error: {last_error or 'Message could not be delivered.'}"
             ),
