@@ -412,10 +412,20 @@ class CampaignViewSet(viewsets.ModelViewSet):
         campaign.status = 'COMPLETED' if failed_count == 0 else ('FAILED' if sent_count == 0 else 'COMPLETED')
         campaign.save(update_fields=['sent_count', 'failed_count', 'status'])
 
+        last_error = None
+        if gateway_results:
+            last_res = gateway_results[0].get('result', {})
+            if not last_res.get('success'):
+                last_error = last_res.get('error') or last_res.get('response')
+
         return Response({
             'success': sent_count > 0,
             'is_free_test': is_free_test,
-            'message': f"WhatsApp message successfully delivered to {sent_count} recipient(s)!" if sent_count > 0 else "Failed to deliver WhatsApp message.",
+            'message': (
+                f"WhatsApp message successfully delivered to {sent_count} recipient(s)!"
+                if sent_count > 0
+                else f"WhatsApp Gateway delivery error: {last_error or 'Message could not be delivered.'}"
+            ),
             'sent_count': sent_count,
             'failed_count': failed_count,
             'campaign_id': campaign.id,

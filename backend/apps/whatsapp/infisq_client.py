@@ -28,6 +28,33 @@ class InfisqWhatsAppClient:
             cleaned = '91' + cleaned
         return cleaned
 
+    def _parse_api_response(self, response):
+        """
+        Parses JSON response from wa.infisq.com and checks actual ApiResponse status.
+        wa.infisq.com returns HTTP 200 even on errors with {"ApiResponse": "Failed", "ErrorMessage": "..."}.
+        """
+        raw_text = response.text.strip()
+        status_ok = (response.status_code == 200)
+        is_success = False
+        error_msg = ''
+        try:
+            data = response.json()
+            api_resp = str(data.get('ApiResponse', '')).strip().lower()
+            is_success = status_ok and (api_resp == 'success')
+            if not is_success:
+                error_msg = data.get('ErrorMessage') or data.get('Message') or data.get('Description') or raw_text
+        except Exception:
+            is_success = status_ok and ('success' in raw_text.lower() and 'failed' not in raw_text.lower() and 'error' not in raw_text.lower())
+            if not is_success:
+                error_msg = raw_text
+
+        return {
+            'success': is_success,
+            'status_code': response.status_code,
+            'response': raw_text,
+            'error': error_msg if not is_success else None
+        }
+
     def check_account_validity(self):
         """
         Checks account validity on wa.infisq.com.
@@ -43,11 +70,7 @@ class InfisqWhatsAppClient:
         }
         try:
             response = requests.get(url, params=params, timeout=15)
-            return {
-                'success': response.status_code == 200,
-                'status_code': response.status_code,
-                'response': response.text
-            }
+            return self._parse_api_response(response)
         except requests.exceptions.RequestException as e:
             logger.error(f"Infisq check account validity error: {e}")
             return {'success': False, 'error': str(e)}
@@ -68,11 +91,7 @@ class InfisqWhatsAppClient:
         }
         try:
             response = requests.get(url, params=params, timeout=15)
-            return {
-                'success': response.status_code == 200,
-                'status_code': response.status_code,
-                'response': response.text
-            }
+            return self._parse_api_response(response)
         except requests.exceptions.RequestException as e:
             logger.error(f"Infisq check conversation validity error: {e}")
             return {'success': False, 'error': str(e)}
@@ -94,11 +113,7 @@ class InfisqWhatsAppClient:
         }
         try:
             response = requests.get(url, params=params, timeout=15)
-            return {
-                'success': response.status_code == 200,
-                'status_code': response.status_code,
-                'response': response.text
-            }
+            return self._parse_api_response(response)
         except requests.exceptions.RequestException as e:
             logger.error(f"Infisq send text message error: {e}")
             return {'success': False, 'error': str(e)}
@@ -127,11 +142,7 @@ class InfisqWhatsAppClient:
         }
         try:
             response = requests.get(url, params=params, timeout=15)
-            return {
-                'success': response.status_code == 200,
-                'status_code': response.status_code,
-                'response': response.text
-            }
+            return self._parse_api_response(response)
         except requests.exceptions.RequestException as e:
             logger.error(f"Infisq send template error: {e}")
             return {'success': False, 'error': str(e)}
@@ -154,11 +165,7 @@ class InfisqWhatsAppClient:
         }
         try:
             response = requests.get(url, params=params, timeout=15)
-            return {
-                'success': response.status_code == 200,
-                'status_code': response.status_code,
-                'response': response.text
-            }
+            return self._parse_api_response(response)
         except requests.exceptions.RequestException as e:
             logger.error(f"Infisq send media error: {e}")
             return {'success': False, 'error': str(e)}
@@ -186,11 +193,7 @@ class InfisqWhatsAppClient:
         }
         try:
             response = requests.get(url, params=params, timeout=15)
-            return {
-                'success': response.status_code == 200,
-                'status_code': response.status_code,
-                'response': response.text
-            }
+            return self._parse_api_response(response)
         except requests.exceptions.RequestException as e:
             logger.error(f"Infisq send button error: {e}")
             return {'success': False, 'error': str(e)}
@@ -219,11 +222,7 @@ class InfisqWhatsAppClient:
         }
         try:
             response = requests.get(url, params=params, timeout=15)
-            return {
-                'success': response.status_code == 200,
-                'status_code': response.status_code,
-                'response': response.text
-            }
+            return self._parse_api_response(response)
         except requests.exceptions.RequestException as e:
             logger.error(f"Infisq send list error: {e}")
             return {'success': False, 'error': str(e)}
