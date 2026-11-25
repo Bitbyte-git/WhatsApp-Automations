@@ -22,6 +22,7 @@ import {
   X,
   ChevronDown,
   Layers,
+  History,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
@@ -199,6 +200,22 @@ export const Layout: React.FC<LayoutProps> = ({ currentTab, setCurrentTab, child
           >
             <MessageSquare className={`w-4.5 h-4.5 mr-3 transition-colors ${currentTab === 'inbox' ? 'text-[#25D366]' : 'text-gray-400'}`} />
             <span>Live Chat</span>
+          </button>
+
+          {/* Message History */}
+          <button
+            onClick={() => {
+              setCurrentTab('message-history');
+              setMobileMenuOpen(false);
+            }}
+            className={`w-full flex items-center px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              currentTab === 'message-history'
+                ? 'bg-[#075E54] text-white shadow-sm'
+                : 'text-gray-600 hover:bg-emerald-50 hover:text-[#075E54]'
+            }`}
+          >
+            <History className={`w-4.5 h-4.5 mr-3 transition-colors ${currentTab === 'message-history' ? 'text-[#25D366]' : 'text-gray-400'}`} />
+            <span>Message History</span>
           </button>
 
           {/* Contacts */}
@@ -502,6 +519,13 @@ export const Layout: React.FC<LayoutProps> = ({ currentTab, setCurrentTab, child
                 >
                   <MessageSquare className="w-4 h-4 mr-3" />
                   <span>Live Chat</span>
+                </button>
+                <button
+                  onClick={() => { setCurrentTab('message-history'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center px-3 py-2 rounded-xl text-sm font-semibold ${currentTab === 'message-history' ? 'bg-[#075E54] text-white' : 'text-slate-700'}`}
+                >
+                  <History className="w-4 h-4 mr-3" />
+                  <span>Message History</span>
                 </button>
                 <button
                   onClick={() => { setCurrentTab('contacts'); setMobileMenuOpen(false); }}

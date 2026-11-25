@@ -12,6 +12,7 @@ import { InboxView } from './views/InboxView';
 import { ContactsView } from './views/ContactsView';
 import { TemplatesView } from './views/TemplatesView';
 import { CampaignsView } from './views/CampaignsView';
+import { MessageHistoryView } from './views/MessageHistoryView';
 import { ChatbotView } from './views/ChatbotView';
 import { AnalyticsView } from './views/AnalyticsView';
 import { WalletBillingView } from './views/WalletBillingView';
@@ -48,9 +49,10 @@ const DashboardApp: React.FC = () => {
       {currentTab === 'inbox' && <InboxView />}
       {currentTab === 'contacts' && <ContactsView />}
       {currentTab === 'templates' && <TemplatesView />}
-      {(currentTab === 'campaigns' || currentTab === 'marketing') && <CampaignsView initialCategory="MARKETING" />}
-      {currentTab === 'utility' && <CampaignsView initialCategory="UTILITY" />}
-      {currentTab === 'service' && <CampaignsView initialCategory="SERVICE" />}
+      {(currentTab === 'campaigns' || currentTab === 'marketing') && <CampaignsView initialCategory="MARKETING" onNavigate={setCurrentTab} />}
+      {currentTab === 'utility' && <CampaignsView initialCategory="UTILITY" onNavigate={setCurrentTab} />}
+      {currentTab === 'service' && <CampaignsView initialCategory="SERVICE" onNavigate={setCurrentTab} />}
+      {currentTab === 'message-history' && <MessageHistoryView />}
       {currentTab === 'chatbot' && <ChatbotView />}
       {currentTab === 'analytics' && <AnalyticsView />}
       {currentTab === 'billing' && <WalletBillingView />}

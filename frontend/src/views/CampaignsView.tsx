@@ -23,9 +23,10 @@ import { useAuth } from '../context/AuthContext';
 
 interface CampaignsViewProps {
   initialCategory?: 'MARKETING' | 'UTILITY' | 'SERVICE';
+  onNavigate?: (tab: string) => void;
 }
 
-export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 'MARKETING' }) => {
+export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 'MARKETING', onNavigate }) => {
   const { user, activeTenantId } = useAuth();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -812,11 +813,25 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
         </div>
       </div>
 
-      {/* Broadcast History */}
+      {/* Recent Broadcast History (Last 5) */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="text-sm font-extrabold text-slate-900">Campaign Broadcast History</h3>
-          <span className="text-xs text-slate-500 font-semibold">{campaigns.length} Campaigns</span>
+          <div className="flex items-center space-x-2">
+            <h3 className="text-sm font-extrabold text-slate-900">Recent Broadcast History</h3>
+            <span className="text-[11px] text-slate-400 font-semibold">(Latest 5)</span>
+          </div>
+          <div className="flex items-center space-x-3">
+            <span className="text-xs text-slate-500 font-semibold">{campaigns.length} Total</span>
+            {onNavigate && campaigns.length > 5 && (
+              <button
+                type="button"
+                onClick={() => onNavigate('message-history')}
+                className="text-xs font-bold text-[#075E54] hover:underline"
+              >
+                View All History →
+              </button>
+            )}
+          </div>
         </div>
 
         {loading ? (
@@ -837,7 +852,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
-                {campaigns.map((camp) => (
+                {campaigns.slice(0, 5).map((camp) => (
                   <tr key={camp.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="py-3.5 px-4 font-bold text-slate-900">{camp.name}</td>
                     <td className="py-3.5 px-4">{camp.total_recipients}</td>
