@@ -37,7 +37,7 @@ export const CampaignsView: React.FC = () => {
   const [newButtonText, setNewButtonText] = useState('');
 
   // Service Type
-  const [serviceType, setServiceType] = useState<'MARKETING' | 'SERVICE'>('MARKETING');
+  const [serviceType, setServiceType] = useState<'MARKETING' | 'UTILITY' | 'SERVICE'>('MARKETING');
 
   // Target Mode: 'ALL' | 'CUSTOM_COUNT' | 'TEST'
   const [deliveryMode, setDeliveryMode] = useState<'ALL' | 'CUSTOM_COUNT' | 'TEST'>('TEST');
@@ -159,6 +159,7 @@ export const CampaignsView: React.FC = () => {
 
       const payload = {
         recipient_type: recipientType,
+        message_category: serviceType,
         phone_number: testPhoneNumber.trim(),
         phone_numbers: audienceNumbers,
         service_name: campaignTitle.trim() || 'Marketing Offer',
@@ -296,6 +297,62 @@ export const CampaignsView: React.FC = () => {
             <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-3">
               1. Campaign Information
             </h2>
+
+            {/* Message Category Selector: Marketing / Utility / Service */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Message Type (Meta Category) *
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setServiceType('MARKETING')}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    serviceType === 'MARKETING'
+                      ? 'border-[#075E54] bg-emerald-50/70 ring-1 ring-[#075E54]'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">📢 Marketing</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">~₹0.90</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">Offers, Posters & Promos</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setServiceType('UTILITY')}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    serviceType === 'UTILITY'
+                      ? 'border-[#075E54] bg-emerald-50/70 ring-1 ring-[#075E54]'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">🧾 Utility</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">~₹0.14</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">Updates, Invoices & Alerts</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setServiceType('SERVICE')}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    serviceType === 'SERVICE'
+                      ? 'border-[#075E54] bg-emerald-50/70 ring-1 ring-[#075E54]'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">💬 Service</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">FREE</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-1">24h Customer Reply (1K/mo)</p>
+                </button>
+              </div>
+            </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">

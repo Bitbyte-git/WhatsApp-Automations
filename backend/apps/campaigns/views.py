@@ -261,6 +261,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
 
             data = request.data
             recipient_type = data.get('recipient_type', 'TEST')  # 'TEST' or 'AUDIENCE'
+            message_category = str(data.get('message_category', 'MARKETING')).upper()  # 'MARKETING' | 'UTILITY' | 'SERVICE'
             target_number = str(data.get('phone_number', '')).strip()
             target_numbers = data.get('phone_numbers', [])
             service_name = data.get('service_name', 'Business Service')
@@ -385,39 +386,70 @@ class CampaignViewSet(viewsets.ModelViewSet):
                         formatted_body += '\n\n*Quick Actions:*\n' + '\n'.join([f'[{i+1}] {btn}' for i, btn in enumerate(button_labels)])
                     full_message = f'*{header_text or service_name}*\n\n{formatted_body}\n\n_{footer_text}_'
 
-                    if image_url:
-                        # 1. Try sending approved marketing template with image first
-                        tpl_res = meta_client.send_marketing_offer_template(
-                            to_phone_number=cleaned_phone,
-                            body_text=formatted_body,
-                            image_url=image_url
-                        )
-                        if tpl_res and tpl_res.get('success'):
-                            res = tpl_res
-                        else:
-                            # 2. Fallback to direct high-res image dispatch with caption
+                    if message_category == 'SERVICE':
+                        # Service Window Reply (1,000 FREE/month when customer messaged in last 24h)
+                        if image_url:
                             res = meta_client.send_image_message(
                                 to_phone_number=cleaned_phone,
                                 image_url=image_url,
                                 caption=full_message
                             )
-                            if not res or not res.get('success'):
-                                if tpl_res and not res:
-                                    res = tpl_res
-                    else:
-                        # 1. Try direct text message
-                        res = meta_client.send_text_message(
+                        else:
+                            res = meta_client.send_text_message(
+                                to_phone_number=cleaned_phone,
+                                text_content=full_message
+                            )
+                    elif message_category == 'UTILITY':
+                        # Utility Template Dispatch (~₹0.14/msg) with direct session fallback
+                        tpl_res = meta_client.send_utility_update_template(
                             to_phone_number=cleaned_phone,
-                            text_content=full_message
+                            body_text=formatted_body,
+                            image_url=image_url if image_url else None
                         )
-                        # 2. Fallback to template if direct message failed
-                        if not res or not res.get('success'):
+                        if tpl_res and tpl_res.get('success'):
+                            res = tpl_res
+                        elif image_url:
+                            res = meta_client.send_image_message(
+                                to_phone_number=cleaned_phone,
+                                image_url=image_url,
+                                caption=full_message
+                            )
+                        else:
+                            res = meta_client.send_text_message(
+                                to_phone_number=cleaned_phone,
+                                text_content=full_message
+                            )
+                    else:
+                        # Marketing Broadcast (Default)
+                        if image_url:
                             tpl_res = meta_client.send_marketing_offer_template(
                                 to_phone_number=cleaned_phone,
-                                body_text=formatted_body
+                                body_text=formatted_body,
+                                image_url=image_url
                             )
                             if tpl_res and tpl_res.get('success'):
                                 res = tpl_res
+                            else:
+                                res = meta_client.send_image_message(
+                                    to_phone_number=cleaned_phone,
+                                    image_url=image_url,
+                                    caption=full_message
+                                )
+                                if not res or not res.get('success'):
+                                    if tpl_res and not res:
+                                        res = tpl_res
+                        else:
+                            res = meta_client.send_text_message(
+                                to_phone_number=cleaned_phone,
+                                text_content=full_message
+                            )
+                            if not res or not res.get('success'):
+                                tpl_res = meta_client.send_marketing_offer_template(
+                                    to_phone_number=cleaned_phone,
+                                    body_text=formatted_body
+                                )
+                                if tpl_res and tpl_res.get('success'):
+                                    res = tpl_res
                 else:
                     # Infisq Gateway Dispatch (TenDigit Method 1 - Saved)
                     if button_str:

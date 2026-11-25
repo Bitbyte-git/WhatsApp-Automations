@@ -88,6 +88,34 @@ class MetaCloudAPIClient:
             components=components
         )
 
+    def send_utility_update_template(self, to_phone_number, body_text, image_url=None):
+        """
+        Sends the bitbyte_utility_update template (Utility category, ~0.14 INR/msg).
+        Used for project updates, invoices, confirmations, and service notifications.
+        """
+        components = []
+        if image_url:
+            components.append({
+                'type': 'header',
+                'parameters': [{
+                    'type': 'image',
+                    'image': {'link': image_url}
+                }]
+            })
+        components.append({
+            'type': 'body',
+            'parameters': [{
+                'type': 'text',
+                'text': body_text[:1024]
+            }]
+        })
+        return self.send_template_message(
+            to_phone_number=to_phone_number,
+            template_name='bitbyte_utility_update',
+            language_code='en',
+            components=components
+        )
+
     def send_template_message(self, to_phone_number, template_name, language_code='en_US', components=None):
         """
         Sends a pre-approved Meta WhatsApp template message.
