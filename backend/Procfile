@@ -1,1 +1,1 @@
-web: gunicorn bitbyte_whatsapp.wsgi:application
+web: gunicorn bitbyte_whatsapp.wsgi:application --workers 2 --threads 4 --timeout 60

@@ -6,12 +6,19 @@ from django.contrib import admin
 from django.urls import path, include, re_path
 from django.http import JsonResponse
 from django.conf import settings
+from django.db import connection
 from django.views.generic import TemplateView
 import os
 
 def health_check(request):
+    db_ok = True
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT 1')
+    except Exception:
+        db_ok = False
     return JsonResponse({
-        'status': 'healthy',
+        'status': 'healthy' if db_ok else 'degraded',
         'service': 'BitByte WhatsApp SaaS Platform API',
         'version': '1.0.0',
         'company': 'BitByte Technologies',

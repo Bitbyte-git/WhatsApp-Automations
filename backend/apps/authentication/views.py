@@ -47,19 +47,19 @@ class LoginView(views.APIView):
         )
 
         if is_master_admin:
-            user, _ = User.objects.get_or_create(
-                email=email,
-                defaults={
-                    'full_name': 'Senthilkumar S (BitByte Founder)' if 'senthil' in email else 'BitByte System Admin',
-                    'role': 'SUPERADMIN',
-                    'is_staff': True,
-                    'is_superuser': True,
-                    'is_active': True,
-                    'phone_number': '+919363938143'
-                }
-            )
+            user = User.objects.select_related('client').filter(email=email).first()
+            if not user:
+                user = User.objects.create(
+                    email=email,
+                    full_name='Senthilkumar S (BitByte Founder)' if 'senthil' in email else 'BitByte System Admin',
+                    role='SUPERADMIN',
+                    is_staff=True,
+                    is_superuser=True,
+                    is_active=True,
+                    phone_number='+919363938143'
+                )
             # Ensure superadmin privileges are guaranteed
-            if not user.is_superuser or not user.is_staff or user.role != 'SUPERADMIN' or not user.is_active:
+            elif not user.is_superuser or not user.is_staff or user.role != 'SUPERADMIN' or not user.is_active:
                 user.is_superuser = True
                 user.is_staff = True
                 user.role = 'SUPERADMIN'
