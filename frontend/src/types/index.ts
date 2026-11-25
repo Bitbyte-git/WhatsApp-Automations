@@ -171,9 +171,22 @@ export interface KnowledgeDocument {
   client: number;
   chatbot: number;
   title: string;
+  doc_type?: string;
   content_type: 'TEXT' | 'FAQ' | 'DOCUMENT';
   content: string;
   is_active: boolean;
+  created_at: string;
+}
+
+export interface UsageRecord {
+  id: number;
+  client: number;
+  whatsapp_account: number;
+  category: string;
+  meta_cost: string;
+  platform_fee: string;
+  tax_amount: string;
+  total_cost: string;
   created_at: string;
 }
 

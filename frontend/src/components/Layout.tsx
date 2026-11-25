@@ -360,7 +360,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentTab, setCurrentTab, child
               <div className="hidden sm:flex items-center space-x-2">
                 <select
                   value={activeTenantId || ''}
-                  onChange={(e) => setActiveTenant(e.target.value ? parseInt(e.target.value) : null)}
+                  onChange={(e) => setActiveTenant(e.target.value || null)}
                   className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-[#075E54]"
                 >
                   <option value="">All Tenants (Global)</option>
