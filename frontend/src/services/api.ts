@@ -134,6 +134,24 @@ export const api = {
   launchCampaign: (id: number) => api.post<any>(`/campaigns/${id}/launch/`),
   quickBroadcast: (data: any) => api.post<any>('/campaigns/quick_broadcast/', data),
 
+  // Marketing Images (Cloudinary)
+  getMarketingImages: () => api.get<any>('/media/marketing-images/'),
+  deleteMarketingImage: (id: number) => api.del<any>(`/media/marketing-images/${id}/`),
+  uploadMarketingImage: async (file: File, name?: string) => {
+    const token = getAccessToken();
+    const formData = new FormData();
+    formData.append('image', file);
+    if (name) formData.append('name', name);
+    const response = await fetch(`${API_BASE}/media/marketing-images/`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.error || 'Upload failed');
+    return data;
+  },
+
   // Chatbot
   getChatbotConfig: () => api.get<any>('/chatbot/config/'),
   updateChatbotConfig: (id: number, data: any) => api.patch<any>(`/chatbot/config/${id}/`, data),

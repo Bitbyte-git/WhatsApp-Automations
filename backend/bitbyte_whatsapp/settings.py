@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'apps.analytics.apps.AnalyticsConfig',
     'apps.webhooks.apps.WebhooksConfig',
     'apps.settings_manager.apps.SettingsManagerConfig',
+    'apps.media_library',
 ]
 
 MIDDLEWARE = [
@@ -212,3 +213,8 @@ INFISQ_WA_API_KEY = os.environ.get('INFISQ_WA_API_KEY', 'JD5zTemEWj0UX4IBV2oRanl
 # OpenRouter / AI Settings
 OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
 OPENROUTER_MODEL = os.environ.get('OPENROUTER_MODEL', 'openai/gpt-oss-20b')
+
+# Cloudinary Settings (Marketing Image Uploads)
+CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME', '')
+CLOUDINARY_API_KEY = os.environ.get('CLOUDINARY_API_KEY', '')
+CLOUDINARY_API_SECRET = os.environ.get('CLOUDINARY_API_SECRET', '')

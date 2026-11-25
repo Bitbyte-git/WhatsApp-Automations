@@ -265,7 +265,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
         message_body = str(data.get('message', '')).strip()
         buttons = data.get('buttons', [])
         footer_text = data.get('footer_text', 'BitByte WhatsApp Engine')
-        media_url = data.get('media_url', '')
+        image_url = str(data.get('image_url', '') or data.get('media_url', '')).strip()
 
         if not message_body:
             return Response({'error': 'Message content is required.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -331,7 +331,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
                 defaults={
                     'client': client,
                     'business_name': f"{client.name} Official Gateway",
-                    'phone_number': "+15551479144" if meta_client.is_configured else "+919363938143",
+                    'phone_number': "+919944495366" if meta_client.is_configured else "+919363938143",
                     'waba_id': getattr(settings, 'META_WABA_ID', '') or f"waba-{client.id}",
                     'connection_status': "CONNECTED",
                     'account_status': "ACTIVE"
@@ -370,24 +370,32 @@ class CampaignViewSet(viewsets.ModelViewSet):
             res = None
 
             if meta_client.is_configured:
-                # Direct Meta Cloud API Dispatch (Method 2)
+                # Direct Meta Cloud API Dispatch (Official Method)
                 formatted_body = message_body
                 if button_labels:
                     formatted_body += "\n\n*Quick Actions:*\n" + "\n".join([f"[{i+1}] {btn}" for i, btn in enumerate(button_labels)])
                 full_message = f"*{header_text or service_name}*\n\n{formatted_body}\n\n_{footer_text}_"
 
-                res = meta_client.send_text_message(
+                # 1. Try bitbyte_offer template first (delivers to cold leads who never sent 'Hi')
+                res = meta_client.send_marketing_offer_template(
                     to_phone_number=cleaned_phone,
-                    text_content=full_message
+                    body_text=formatted_body,
+                    image_url=image_url if image_url else None
                 )
 
-                # If direct text rejected by Meta (cold lead outside 24h window), send official Meta template
-                if not res.get('success'):
-                    res = meta_client.send_template_message(
-                        to_phone_number=cleaned_phone,
-                        template_name='hello_world',
-                        language_code='en_US'
-                    )
+                # 2. Fallback to direct image/text if template is still pending review
+                if not res or not res.get('success'):
+                    if image_url:
+                        res = meta_client.send_image_message(
+                            to_phone_number=cleaned_phone,
+                            image_url=image_url,
+                            caption=full_message
+                        )
+                    else:
+                        res = meta_client.send_text_message(
+                            to_phone_number=cleaned_phone,
+                            text_content=full_message
+                        )
             else:
                 # Infisq Gateway Dispatch (TenDigit Method 1 - Saved)
                 if button_str:

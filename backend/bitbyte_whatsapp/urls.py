@@ -32,6 +32,7 @@ urlpatterns = [
     path('api/analytics/', include('apps.analytics.urls')),
     path('api/webhooks/', include('apps.webhooks.urls')),
     path('api/settings/', include('apps.settings_manager.urls')),
+    path('api/media/', include('apps.media_library.urls')),
 ]
 
 # Serve React SPA index.html for frontend routes if built

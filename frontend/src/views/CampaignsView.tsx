@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Send,
   Plus,
@@ -11,6 +11,10 @@ import {
   ExternalLink,
   Wallet,
   Check,
+  Image as ImageIcon,
+  Upload,
+  Trash2,
+  Eye,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Campaign, Contact } from '../types';
@@ -46,20 +50,30 @@ export const CampaignsView: React.FC = () => {
   const [alertSuccess, setAlertSuccess] = useState('');
   const [alertError, setAlertError] = useState('');
 
+  // Marketing Images
+  const [marketingImages, setMarketingImages] = useState<any[]>([]);
+  const [selectedImageId, setSelectedImageId] = useState<number | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState('');
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
   const loadData = async () => {
     setLoading(true);
     try {
       const tenantParam = activeTenantId ? `client_id=${activeTenantId}` : '';
-      const [campRes, contRes, wallRes] = await Promise.all([
+      const [campRes, contRes, wallRes, imgRes] = await Promise.all([
         api.getCampaigns(tenantParam),
         api.getContacts(tenantParam),
         api.getWallet(tenantParam),
+        api.getMarketingImages().catch(() => ({ results: [] })),
       ]);
       setCampaigns(campRes?.results || (Array.isArray(campRes) ? campRes : []));
       setContacts(contRes?.results || (Array.isArray(contRes) ? contRes : []));
       if (wallRes?.balance !== undefined) {
         setWalletBalance(String(wallRes.balance));
       }
+      setMarketingImages(imgRes?.results || []);
     } catch {
       // fallback
     } finally {
@@ -141,6 +155,8 @@ export const CampaignsView: React.FC = () => {
         }
       }
 
+      const selectedImg = marketingImages.find((img: any) => img.id === selectedImageId);
+
       const payload = {
         recipient_type: recipientType,
         phone_number: testPhoneNumber.trim(),
@@ -150,6 +166,7 @@ export const CampaignsView: React.FC = () => {
         message: message.trim(),
         buttons: buttons.filter((b) => b.trim().length > 0),
         footer_text: user?.client_details?.name || 'BitByte Platform',
+        image_url: selectedImg?.webp_url || selectedImg?.cloudinary_url || '',
       };
 
       const res = await api.quickBroadcast(payload);
@@ -173,6 +190,47 @@ export const CampaignsView: React.FC = () => {
       setSending(false);
     }
   };
+
+  // ── Image Handlers ──────────────────────────────────────────
+  const loadImages = async () => {
+    try {
+      const res = await api.getMarketingImages();
+      setMarketingImages(res?.results || []);
+    } catch { /* ignore */ }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    setImageUploadError('');
+    try {
+      const res = await api.uploadMarketingImage(file, file.name.replace(/\.[^.]+$/, ''));
+      await loadImages();
+      setSelectedImageId(res?.image?.id || null);
+      setAlertSuccess(`Image "${res?.image?.name}" uploaded as WebP successfully!`);
+    } catch (err: any) {
+      setImageUploadError(err.message || 'Upload failed. Check Cloudinary config.');
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  };
+
+  const handleDeleteImage = async (id: number, name: string) => {
+    if (!window.confirm(`Delete image "${name}"? This cannot be undone.`)) return;
+    try {
+      await api.deleteMarketingImage(id);
+      if (selectedImageId === id) setSelectedImageId(null);
+      await loadImages();
+      setAlertSuccess(`Image "${name}" deleted.`);
+    } catch (err: any) {
+      setAlertError(err.message || 'Delete failed.');
+    }
+  };
+
+  // Load images on mount
+  useEffect(() => { loadImages(); }, []);
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-12">
@@ -322,6 +380,123 @@ export const CampaignsView: React.FC = () => {
               )}
             </div>
           </div>
+
+          {/* ── Marketing Image Upload Section ───────────────────── */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2">
+                <ImageIcon className="w-4 h-4 text-[#075E54]" />
+                <span>1b. Marketing Image (Optional)</span>
+              </h2>
+              <span className="text-[11px] text-slate-400 font-medium">{marketingImages.length}/3 images</span>
+            </div>
+
+            {/* Upload Zone */}
+            {marketingImages.length < 3 && (
+              <div
+                className="border-2 border-dashed border-emerald-200 rounded-xl p-5 text-center cursor-pointer hover:border-[#075E54] hover:bg-emerald-50/40 transition-all"
+                onClick={() => imageInputRef.current?.click()}
+              >
+                <Upload className="w-6 h-6 text-[#075E54] mx-auto mb-2" />
+                <p className="text-xs font-bold text-slate-700">Click to upload image</p>
+                <p className="text-[11px] text-slate-400 mt-1">JPG, PNG, WebP — max 5MB — auto-converted to WebP</p>
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                  disabled={uploadingImage}
+                />
+              </div>
+            )}
+
+            {uploadingImage && (
+              <div className="flex items-center space-x-2 text-xs text-emerald-700 font-semibold">
+                <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                <span>Uploading to Cloudinary as WebP...</span>
+              </div>
+            )}
+
+            {imageUploadError && (
+              <p className="text-xs text-rose-600 font-semibold">{imageUploadError}</p>
+            )}
+
+            {/* Image Grid */}
+            {marketingImages.length > 0 && (
+              <div className="grid grid-cols-3 gap-3">
+                {marketingImages.map((img: any) => (
+                  <div
+                    key={img.id}
+                    className={`relative group rounded-xl overflow-hidden border-2 cursor-pointer transition-all ${
+                      selectedImageId === img.id
+                        ? 'border-[#075E54] ring-2 ring-[#25D366]/40'
+                        : 'border-slate-200 hover:border-emerald-300'
+                    }`}
+                    onClick={() => setSelectedImageId(selectedImageId === img.id ? null : img.id)}
+                  >
+                    <img
+                      src={img.webp_url || img.cloudinary_url}
+                      alt={img.name}
+                      className="w-full h-24 object-cover"
+                    />
+                    {/* Overlay on hover */}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
+                      <button
+                        type="button"
+                        title="Preview"
+                        className="p-1.5 bg-white/90 rounded-lg"
+                        onClick={(e) => { e.stopPropagation(); setPreviewImageUrl(img.webp_url || img.cloudinary_url); }}
+                      >
+                        <Eye className="w-3.5 h-3.5 text-slate-700" />
+                      </button>
+                      <button
+                        type="button"
+                        title="Delete"
+                        className="p-1.5 bg-rose-500 rounded-lg"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteImage(img.id, img.name); }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-white" />
+                      </button>
+                    </div>
+                    {/* Selected badge */}
+                    {selectedImageId === img.id && (
+                      <div className="absolute top-1.5 right-1.5 w-5 h-5 bg-[#075E54] rounded-full flex items-center justify-center">
+                        <Check className="w-3 h-3 text-white" />
+                      </div>
+                    )}
+                    <div className="p-1.5 bg-white">
+                      <p className="text-[10px] font-bold text-slate-700 truncate">{img.name}</p>
+                      <p className="text-[9px] text-slate-400">{img.file_size_kb}KB • WebP</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {selectedImageId && (
+              <p className="text-[11px] text-emerald-700 font-semibold flex items-center space-x-1">
+                <Check className="w-3.5 h-3.5" />
+                <span>Image selected — will be sent with message</span>
+              </p>
+            )}
+          </div>
+
+          {/* Image Preview Modal */}
+          {previewImageUrl && (
+            <div
+              className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6"
+              onClick={() => setPreviewImageUrl(null)}
+            >
+              <div className="relative max-w-lg w-full" onClick={e => e.stopPropagation()}>
+                <img src={previewImageUrl} alt="Preview" className="w-full rounded-2xl shadow-2xl" />
+                <button
+                  className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center font-bold text-slate-700 shadow"
+                  onClick={() => setPreviewImageUrl(null)}
+                >✕</button>
+              </div>
+            </div>
+          )}
 
           {/* Audience Selection */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
