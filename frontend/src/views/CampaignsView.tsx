@@ -15,11 +15,15 @@ import {
   Upload,
   Trash2,
   Eye,
+  FileSpreadsheet,
+  Download,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { api } from '../services/api';
 import { Campaign, Contact } from '../types';
 import { Badge } from '../components/Badge';
 import { useAuth } from '../context/AuthContext';
+import { TableSkeleton } from '../components/Skeleton';
 
 interface CampaignsViewProps {
   initialCategory?: 'MARKETING' | 'UTILITY' | 'SERVICE';
@@ -66,6 +70,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
   const [imageUploadError, setImageUploadError] = useState('');
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const excelInputRef = useRef<HTMLInputElement>(null);
+  const [excelSummary, setExcelSummary] = useState<string>('');
 
   const loadData = async () => {
     setLoading(true);
@@ -124,6 +130,63 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
     }
   };
 
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAlertError('');
+    setExcelSummary('');
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const extracted = new Set<string>();
+
+      workbook.SheetNames.forEach((sheetName) => {
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
+        rows.forEach((row) => {
+          if (!Array.isArray(row)) return;
+          row.forEach((cell) => {
+            if (cell === null || cell === undefined) return;
+            const digits = String(cell).replace(/[^0-9]/g, '');
+            if (digits.length === 10 && /^[6-9]/.test(digits)) {
+              extracted.add(digits);
+            } else if (digits.length === 12 && digits.startsWith('91')) {
+              extracted.add(digits.slice(2));
+            } else if (digits.length >= 10 && digits.length <= 13) {
+              extracted.add(digits);
+            }
+          });
+        });
+      });
+
+      const list = Array.from(extracted);
+      if (list.length === 0) {
+        setAlertError('Excel file-la valid 10-digit WhatsApp numbers kidaikkala bro. Column check pannunga.');
+        return;
+      }
+
+      setDeliveryMode('TEST');
+      setTestPhoneNumber(list.join(', '));
+      setExcelSummary(`✅ ${list.length} unique numbers loaded from "${file.name}"`);
+    } catch {
+      setAlertError('Excel file read panna mudiyala. Valid .xlsx, .xls, or .csv file upload pannunga.');
+    } finally {
+      if (excelInputRef.current) excelInputRef.current.value = '';
+    }
+  };
+
+  const handleDownloadSampleExcel = () => {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['Name', 'Phone Number'],
+      ['Customer 1', '6385257541'],
+      ['Customer 2', '7339201392'],
+      ['Customer 3', '9876543210'],
+    ]);
+    XLSX.utils.book_append_sheet(wb, ws, 'Contacts');
+    XLSX.writeFile(wb, 'bitbyte_whatsapp_contacts_sample.xlsx');
+  };
+
   const handleQuickDispatch = async () => {
     if (!message.trim()) {
       setAlertError('Please enter your marketing offer message.');
@@ -138,8 +201,18 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
       let recipientType = 'AUDIENCE';
       let audienceNumbers: string[] = [];
 
+      const parsedSpecificNumbers = testPhoneNumber
+        .split(/[\n,\s]+/)
+        .map((n) => n.trim().replace(/[^0-9+]/g, ''))
+        .filter((n) => n.length >= 10);
+
       if (deliveryMode === 'TEST') {
-        recipientType = 'TEST';
+        if (parsedSpecificNumbers.length > 1) {
+          recipientType = 'AUDIENCE';
+          audienceNumbers = parsedSpecificNumbers;
+        } else {
+          recipientType = 'TEST';
+        }
       } else if (deliveryMode === 'ALL') {
         recipientType = 'AUDIENCE';
         if (contacts.length > 0) {
@@ -182,10 +255,11 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
       const res = await api.quickBroadcast(payload);
 
       if (res?.success) {
+        const count = res.sent_count || 1;
         setAlertSuccess(
-          deliveryMode === 'TEST'
-            ? `Test message delivered to +91 ${testPhoneNumber}!`
-            : `Marketing broadcast launched successfully to ${res.sent_count} recipient(s)!`
+          deliveryMode === 'TEST' && count === 1
+            ? `Message delivered to +91 ${testPhoneNumber}!`
+            : `Broadcast successfully delivered to ${count} recipient(s)!`
         );
         if (res.wallet_balance !== undefined) {
           setWalletBalance(res.wallet_balance);
@@ -629,10 +703,10 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
                 }`}
               >
                 <p className="text-xs font-bold text-emerald-950">
-                  {user?.role === 'SUPERADMIN' ? '📱 Specific Number' : '⚡ Single Test'}
+                  {user?.role === 'SUPERADMIN' ? '📱 Specific Number(s)' : '⚡ Single Test'}
                 </p>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  {user?.role === 'SUPERADMIN' ? 'Send to entered customer phone' : 'Test on own phone'}
+                  {user?.role === 'SUPERADMIN' ? 'Enter 1 or 10+ customer phones' : 'Test on own phone'}
                 </p>
               </button>
             </div>
@@ -656,32 +730,62 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
               </div>
             )}
 
-            {/* Single Test / Specific Number Input */}
+            {/* Single Test / Specific Numbers Input + Excel Upload */}
             {deliveryMode === 'TEST' && (
-              <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-2">
-                <div className="flex items-center justify-between">
+              <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <label className="block text-xs font-bold text-emerald-900 uppercase tracking-wider">
-                    {user?.role === 'SUPERADMIN' ? 'Enter Target WhatsApp Number *' : 'Enter Test WhatsApp Number *'}
+                    {user?.role === 'SUPERADMIN' ? 'Enter Numbers or Upload Excel *' : 'Enter Test WhatsApp Number *'}
                   </label>
-                  <span className="text-[11px] font-semibold text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200">
-                    Sender: +91 99444 95366
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[11px] font-semibold text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200">
+                      {testPhoneNumber.split(/[\n,\s]+/).filter((n) => n.trim().replace(/[^0-9+]/g, '').length >= 10).length} Number(s) Ready
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <span className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600">
-                    +91
-                  </span>
-                  <input
-                    type="text"
-                    value={testPhoneNumber}
-                    onChange={(e) => setTestPhoneNumber(e.target.value)}
-                    placeholder="Enter 10-digit mobile number"
-                    className="flex-1 px-3 py-2 text-xs font-bold border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54] bg-white text-slate-900"
-                  />
-                </div>
+
+                {/* Excel Upload Bar */}
+                {user?.role === 'SUPERADMIN' && (
+                  <div className="flex flex-wrap items-center gap-2 bg-white p-2.5 rounded-xl border border-emerald-200/80">
+                    <button
+                      type="button"
+                      onClick={() => excelInputRef.current?.click()}
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#075E54] hover:bg-[#064e46] text-white text-xs font-bold transition-colors"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5" />
+                      <span>Upload Excel / CSV (.xlsx)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadSampleExcel}
+                      className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Sample Excel</span>
+                    </button>
+                    <input
+                      ref={excelInputRef}
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      className="hidden"
+                      onChange={handleExcelUpload}
+                    />
+                    {excelSummary && (
+                      <span className="text-[11px] font-bold text-emerald-700">{excelSummary}</span>
+                    )}
+                  </div>
+                )}
+
+                <textarea
+                  rows={2}
+                  value={testPhoneNumber}
+                  onChange={(e) => setTestPhoneNumber(e.target.value)}
+                  placeholder="Enter 1 number, 10 numbers (comma/line separated), or click Upload Excel above..."
+                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54] bg-white text-slate-900"
+                />
                 <p className="text-[11px] text-emerald-800">
                   {user?.role === 'SUPERADMIN'
-                    ? 'This WhatsApp marketing message will be dispatched directly from Admin Official WhatsApp (+91 99444 95366).'
+                    ? 'Tip: Excel (.xlsx / .csv) upload panna automatic-ah ella phone numbers-um extract panni ore click-la send pannalam.'
                     : 'Test this offer on your personal mobile before sending to all contacts.'}
                 </p>
               </div>
@@ -722,9 +826,14 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
                   <Send className="w-5 h-5" />
                   <span>
                     {deliveryMode === 'TEST'
-                      ? (user?.role === 'SUPERADMIN'
-                          ? `🚀 Send ${serviceType === 'UTILITY' ? 'Utility Update' : serviceType === 'SERVICE' ? 'Service Reply' : 'Marketing Message'} to +91 ${testPhoneNumber || '...'}`
-                          : `⚡ Send Test Message to +91 ${testPhoneNumber || 'Phone'}`)
+                      ? (() => {
+                          const count = testPhoneNumber.split(/[\n,\s]+/).filter((n) => n.trim().replace(/[^0-9+]/g, '').length >= 10).length;
+                          const label = serviceType === 'UTILITY' ? 'Utility Update' : serviceType === 'SERVICE' ? 'Service Reply' : 'Marketing Message';
+                          if (count > 1) return `🚀 Send ${label} to ${count} Numbers`;
+                          return user?.role === 'SUPERADMIN'
+                            ? `🚀 Send ${label} to +91 ${testPhoneNumber || '...'}`
+                            : `⚡ Send Test Message to +91 ${testPhoneNumber || 'Phone'}`;
+                        })()
                       : deliveryMode === 'CUSTOM_COUNT'
                       ? `🚀 Send ${serviceType === 'UTILITY' ? 'Utility Update' : serviceType === 'SERVICE' ? 'Service Reply' : 'Marketing Offer'} to ${Math.min(customSendCount, contacts.length || customSendCount)} Contacts`
                       : `🚀 Send ${serviceType === 'UTILITY' ? 'Utility Update' : serviceType === 'SERVICE' ? 'Service Reply' : 'Marketing Offer'} to ALL ${contacts.length} Contacts`}
@@ -835,7 +944,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
         </div>
 
         {loading ? (
-          <div className="py-12 text-center text-xs text-slate-500">Loading campaign records...</div>
+          <TableSkeleton rows={5} cols={6} />
         ) : campaigns.length === 0 ? (
           <div className="py-12 text-center text-xs text-slate-500">No campaigns created yet.</div>
         ) : (

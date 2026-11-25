@@ -19,10 +19,13 @@ import { Badge } from '../components/Badge';
 import { EmptyState } from '../components/EmptyState';
 import { useAuth } from '../context/AuthContext';
 import { Modal } from '../components/Modal';
+import { TableSkeleton, useInfiniteScroll, InfiniteScrollFooter } from '../components/Skeleton';
 
 export const TransactionsView: React.FC = () => {
   const { user, activeTenantId } = useAuth();
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const { visibleCount, hasMore, loadingMore, sentinelRef } = useInfiniteScroll(transactions.length, 20, 20);
+  const visibleTransactions = transactions.slice(0, visibleCount);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -118,31 +121,29 @@ export const TransactionsView: React.FC = () => {
       {/* Transactions Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         {loading ? (
-          <div className="py-16 text-center text-xs text-slate-500">
-            <div className="inline-block w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mb-2" />
-            <p>Loading transactions...</p>
-          </div>
+          <TableSkeleton rows={6} cols={7} />
         ) : transactions.length === 0 ? (
           <EmptyState
             title="No transactions found."
             description="No matching transaction records found in the database. Transactions will automatically register as messages are sent or wallet funds added."
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-semibold">
-                <tr>
-                  <th className="py-3 px-4">Transaction / Description</th>
-                  <th className="py-3 px-4">Type</th>
-                  <th className="py-3 px-4">Category</th>
-                  <th className="py-3 px-4">Reference ID</th>
-                  <th className="py-3 px-4">Date & Time</th>
-                  <th className="py-3 px-4 text-right">Amount</th>
-                  <th className="py-3 px-4 text-right">Invoice / Bill</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {transactions.map((tx) => (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-semibold">
+                  <tr>
+                    <th className="py-3 px-4">Transaction / Description</th>
+                    <th className="py-3 px-4">Type</th>
+                    <th className="py-3 px-4">Category</th>
+                    <th className="py-3 px-4">Reference ID</th>
+                    <th className="py-3 px-4">Date & Time</th>
+                    <th className="py-3 px-4 text-right">Amount</th>
+                    <th className="py-3 px-4 text-right">Invoice / Bill</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {visibleTransactions.map((tx) => (
                   <tr key={tx.id} className="hover:bg-slate-50/60 transition-colors">
                     <td className="py-3.5 px-4 font-semibold text-slate-900">
                       <div>{tx.description}</div>
@@ -184,6 +185,14 @@ export const TransactionsView: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <InfiniteScrollFooter
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            sentinelRef={sentinelRef}
+            shownCount={visibleTransactions.length}
+            totalCount={transactions.length}
+          />
+          </>
         )}
       </div>
 

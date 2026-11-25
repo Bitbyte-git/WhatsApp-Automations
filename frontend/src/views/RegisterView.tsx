@@ -63,7 +63,7 @@ export const RegisterView: React.FC = () => {
         role: 'CLIENT_ADMIN',
       });
       login(res.tokens.access, res.tokens.refresh, res.user);
-      navigate('/dashboard');
+      navigate(res.user?.role === 'SUPERADMIN' ? '/admin/dashboard' : '/client/dashboard');
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please check your details and try again.');
     } finally {

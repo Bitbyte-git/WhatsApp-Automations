@@ -13,6 +13,7 @@ import {
   Inbox,
   BarChart2,
 } from 'lucide-react';
+import { OverviewSkeleton } from '../components/Skeleton';
 import { StatCard } from '../components/StatCard';
 import { EmptyState } from '../components/EmptyState';
 import { Badge } from '../components/Badge';
@@ -54,12 +55,7 @@ export const OverviewView: React.FC<{ onNavigate: (tab: string) => void }> = ({ 
   }, [activeTenantId, chartRange]);
 
   if (loading) {
-    return (
-      <div className="py-24 text-center">
-        <div className="inline-block w-8 h-8 border-3 border-[#075E54] border-t-transparent rounded-full animate-spin mb-3" />
-        <p className="text-xs text-gray-500 font-medium">Fetching real metrics from Neon PostgreSQL...</p>
-      </div>
-    );
+    return <OverviewSkeleton />;
   }
 
   if (error) {

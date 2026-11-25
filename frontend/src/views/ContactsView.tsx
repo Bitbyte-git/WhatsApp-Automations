@@ -17,11 +17,14 @@ import { Badge } from '../components/Badge';
 import { Modal } from '../components/Modal';
 import { EmptyState } from '../components/EmptyState';
 import { useAuth } from '../context/AuthContext';
+import { TableSkeleton, useInfiniteScroll, InfiniteScrollFooter } from '../components/Skeleton';
 
 export const ContactsView: React.FC = () => {
   const { user, activeTenantId } = useAuth();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
+  const { visibleCount, hasMore, loadingMore, sentinelRef } = useInfiniteScroll(contacts.length, 20, 20);
+  const visibleContacts = contacts.slice(0, visibleCount);
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -195,10 +198,7 @@ export const ContactsView: React.FC = () => {
       {/* Table */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-card overflow-hidden">
         {loading ? (
-          <div className="py-16 text-center text-xs text-gray-500">
-            <div className="inline-block w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mb-2" />
-            <p>Loading contacts...</p>
-          </div>
+          <TableSkeleton rows={6} cols={7} />
         ) : contacts.length === 0 ? (
           <EmptyState
             title="No contacts found."
@@ -207,21 +207,22 @@ export const ContactsView: React.FC = () => {
             onAction={() => handleOpenModal()}
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50 border-b border-gray-100 text-gray-500 uppercase tracking-wider font-semibold">
-                <tr>
-                  <th className="py-3 px-4">Customer Name</th>
-                  <th className="py-3 px-4">WhatsApp Phone Number</th>
-                  <th className="py-3 px-4">Email</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Tags</th>
-                  <th className="py-3 px-4">Created Date</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-gray-700">
-                {contacts.map((contact) => (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-gray-50 border-b border-gray-100 text-gray-500 uppercase tracking-wider font-semibold">
+                  <tr>
+                    <th className="py-3 px-4">Customer Name</th>
+                    <th className="py-3 px-4">WhatsApp Phone Number</th>
+                    <th className="py-3 px-4">Email</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">Tags</th>
+                    <th className="py-3 px-4">Created Date</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 text-gray-700">
+                  {visibleContacts.map((contact) => (
                   <tr key={contact.id} className="hover:bg-gray-50/60 transition-colors">
                     <td className="py-3.5 px-4 font-semibold text-gray-900">
                       {contact.name || 'Unnamed Contact'}
@@ -272,6 +273,14 @@ export const ContactsView: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <InfiniteScrollFooter
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            sentinelRef={sentinelRef}
+            shownCount={visibleContacts.length}
+            totalCount={contacts.length}
+          />
+          </>
         )}
       </div>
 

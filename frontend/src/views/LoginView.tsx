@@ -42,7 +42,7 @@ export const LoginView: React.FC = () => {
         password: password,
       });
       login(res.tokens.access, res.tokens.refresh, res.user);
-      navigate('/dashboard');
+      navigate(res.user?.role === 'SUPERADMIN' ? '/admin/dashboard' : '/client/dashboard');
     } catch (err: any) {
       setError(err.message || 'Authentication failed. Please verify your email and password.');
     } finally {

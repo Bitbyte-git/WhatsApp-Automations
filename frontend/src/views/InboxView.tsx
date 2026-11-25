@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Phone,
 } from 'lucide-react';
+import { InboxListSkeleton, ChatMessagesSkeleton } from '../components/Skeleton';
 import { api } from '../services/api';
 import { Conversation, Message, WhatsAppAccount } from '../types';
 import { Badge } from '../components/Badge';
@@ -170,7 +171,7 @@ export const InboxView: React.FC = () => {
         {/* Conversation List Items */}
         <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
           {loading ? (
-            <div className="py-12 text-center text-xs text-gray-400">Loading inbox...</div>
+            <InboxListSkeleton count={6} />
           ) : conversations.length === 0 ? (
             <div className="p-8 text-center text-xs text-gray-400">
               <p className="font-semibold text-gray-600">No active conversations</p>
@@ -254,7 +255,7 @@ export const InboxView: React.FC = () => {
             {/* Message History */}
             <div className="flex-1 overflow-y-auto p-6 space-y-3 bg-[#EFEAE2]/30">
               {messagesLoading ? (
-                <div className="py-12 text-center text-xs text-gray-400">Loading conversation history...</div>
+                <ChatMessagesSkeleton />
               ) : messages.length === 0 ? (
                 <div className="py-16 text-center text-xs text-gray-400">
                   <p>No messages in this conversation thread yet.</p>

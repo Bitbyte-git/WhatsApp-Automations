@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { Campaign } from '../types';
 import { Badge } from '../components/Badge';
 import { useAuth } from '../context/AuthContext';
+import { TableSkeleton, useInfiniteScroll, InfiniteScrollFooter } from '../components/Skeleton';
 
 export const MessageHistoryView: React.FC = () => {
   const { user, activeTenantId } = useAuth();
@@ -38,6 +39,9 @@ export const MessageHistoryView: React.FC = () => {
     const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const { visibleCount, hasMore, loadingMore, sentinelRef } = useInfiniteScroll(filteredCampaigns.length, 15, 15);
+  const visibleCampaigns = filteredCampaigns.slice(0, visibleCount);
 
   const totalDelivered = campaigns.reduce((acc, c) => acc + (c.delivered_count || c.sent_count || 0), 0);
   const totalFailed = campaigns.reduce((acc, c) => acc + (c.failed_count || 0), 0);
@@ -137,40 +141,49 @@ export const MessageHistoryView: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="py-14 text-center text-xs text-slate-500">Loading message history...</div>
+          <TableSkeleton rows={7} cols={6} />
         ) : filteredCampaigns.length === 0 ? (
           <div className="py-14 text-center text-xs text-slate-500">No broadcast records match your filter.</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-semibold">
-                <tr>
-                  <th className="py-3 px-4">Campaign Name</th>
-                  <th className="py-3 px-4">Recipients</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Delivered</th>
-                  <th className="py-3 px-4">Failed</th>
-                  <th className="py-3 px-4">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {filteredCampaigns.map((camp) => (
-                  <tr key={camp.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3.5 px-4 font-bold text-slate-900">{camp.name}</td>
-                    <td className="py-3.5 px-4">{camp.total_recipients}</td>
-                    <td className="py-3.5 px-4">
-                      <Badge status={camp.status} />
-                    </td>
-                    <td className="py-3.5 px-4 font-bold text-emerald-600">{camp.delivered_count || camp.sent_count}</td>
-                    <td className="py-3.5 px-4 font-bold text-rose-600">{camp.failed_count}</td>
-                    <td className="py-3.5 px-4 text-slate-500">
-                      {camp.created_at ? new Date(camp.created_at).toLocaleString() : 'N/A'}
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-semibold">
+                  <tr>
+                    <th className="py-3 px-4">Campaign Name</th>
+                    <th className="py-3 px-4">Recipients</th>
+                    <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">Delivered</th>
+                    <th className="py-3 px-4">Failed</th>
+                    <th className="py-3 px-4">Date</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {visibleCampaigns.map((camp) => (
+                    <tr key={camp.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="py-3.5 px-4 font-bold text-slate-900">{camp.name}</td>
+                      <td className="py-3.5 px-4">{camp.total_recipients}</td>
+                      <td className="py-3.5 px-4">
+                        <Badge status={camp.status} />
+                      </td>
+                      <td className="py-3.5 px-4 font-bold text-emerald-600">{camp.delivered_count || camp.sent_count}</td>
+                      <td className="py-3.5 px-4 font-bold text-rose-600">{camp.failed_count}</td>
+                      <td className="py-3.5 px-4 text-slate-500">
+                        {camp.created_at ? new Date(camp.created_at).toLocaleString() : 'N/A'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <InfiniteScrollFooter
+              hasMore={hasMore}
+              loadingMore={loadingMore}
+              sentinelRef={sentinelRef}
+              shownCount={visibleCampaigns.length}
+              totalCount={filteredCampaigns.length}
+            />
+          </>
         )}
       </div>
     </div>
