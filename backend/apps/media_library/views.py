@@ -36,38 +36,33 @@ def _upload_to_cloudinary(file_bytes, public_id_prefix, filename):
 
     upload_url = f"https://api.cloudinary.com/v1_1/{cloud_name}/image/upload"
 
-    # Eager transformation: convert to WebP, optimise quality
-    data = {
-        'upload_preset': None,
-        'public_id': f"{public_id_prefix}/{filename}",
-        'folder': 'bitbyte_marketing',
-        'eager': 'f_webp,q_auto:good',
-        'eager_async': 'false',
-        'api_key': api_key,
-    }
-    # Remove None values
-    data = {k: v for k, v in data.items() if v is not None}
-
-    files = {'file': (filename, file_bytes, 'application/octet-stream')}
-
     try:
-        import hashlib, time, hmac
+        import hashlib, time, re
         timestamp = int(time.time())
 
-        # Build signature string
+        # Sanitize filename (letters, numbers, underscores only)
+        clean_name = re.sub(r'[^a-zA-Z0-9_-]', '_', filename).strip('_')
+        public_id = f"{public_id_prefix}_{clean_name}_{timestamp}"
+
+        # Parameters to sign (sorted alphabetically)
         params_to_sign = {
             'eager': 'f_webp,q_auto:good',
             'folder': 'bitbyte_marketing',
-            'public_id': f"{public_id_prefix}/{filename}",
+            'public_id': public_id,
             'timestamp': timestamp,
         }
-        sorted_params = '&'.join(f"{k}={v}" for k, v in sorted(params_to_sign.items()))
-        signature_str = sorted_params + api_secret
-        signature = hashlib.sha1(signature_str.encode('utf-8')).hexdigest()
 
-        data['timestamp'] = timestamp
-        data['signature'] = signature
+        sorted_str = '&'.join(f"{k}={params_to_sign[k]}" for k in sorted(params_to_sign.keys()))
+        signature = hashlib.sha1((sorted_str + api_secret).encode('utf-8')).hexdigest()
 
+        # Data to POST (exactly params_to_sign + api_key + signature)
+        data = {
+            **params_to_sign,
+            'api_key': api_key,
+            'signature': signature,
+        }
+
+        files = {'file': (filename, file_bytes, 'application/octet-stream')}
         response = requests.post(upload_url, data=data, files=files, timeout=30)
         if response.status_code == 200:
             result = response.json()

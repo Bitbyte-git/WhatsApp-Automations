@@ -243,7 +243,7 @@ export const CampaignsView: React.FC = () => {
             </span>
             <span className="text-xs text-slate-400 font-medium">•</span>
             <span className="text-xs text-slate-600 font-semibold">
-              {user?.role === 'SUPERADMIN' ? 'BitByte Technologies (+91 9363938143)' : (user?.client_details?.name || 'My Organization')}
+              {user?.role === 'SUPERADMIN' ? 'BitByte Technologies (+91 99444 95366)' : (user?.client_details?.name || 'My Organization')}
             </span>
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-1.5">
@@ -251,7 +251,7 @@ export const CampaignsView: React.FC = () => {
           </h1>
           <p className="text-xs text-slate-500 mt-1 max-w-2xl">
             {user?.role === 'SUPERADMIN'
-              ? 'Send WhatsApp marketing messages directly from the Admin Official WhatsApp Number (+91 9363938143) to any customer or contact.'
+              ? 'Send WhatsApp marketing messages directly from the Admin Official WhatsApp Number (+91 99444 95366) to any customer or contact.'
               : 'Create real marketing announcements, add action buttons, and dispatch to your customer audience.'}
           </p>
         </div>
@@ -266,7 +266,7 @@ export const CampaignsView: React.FC = () => {
               {user?.role === 'SUPERADMIN' ? 'Admin Gateway Status' : 'Wallet Balance'}
             </p>
             <p className="text-base font-black text-slate-900">
-              {user?.role === 'SUPERADMIN' ? '+91 9363938143 (Active)' : `₹${parseFloat(walletBalance).toFixed(2)}`}
+              {user?.role === 'SUPERADMIN' ? '+91 99444 95366 (Active)' : `₹${parseFloat(walletBalance).toFixed(2)}`}
             </p>
           </div>
         </div>
@@ -597,7 +597,7 @@ export const CampaignsView: React.FC = () => {
                     {user?.role === 'SUPERADMIN' ? 'Enter Target WhatsApp Number *' : 'Enter Test WhatsApp Number *'}
                   </label>
                   <span className="text-[11px] font-semibold text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200">
-                    Sender: +91 9363938143
+                    Sender: +91 99444 95366
                   </span>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -614,7 +614,7 @@ export const CampaignsView: React.FC = () => {
                 </div>
                 <p className="text-[11px] text-emerald-800">
                   {user?.role === 'SUPERADMIN'
-                    ? 'This WhatsApp marketing message will be dispatched directly from Admin Official WhatsApp (+91 9363938143).'
+                    ? 'This WhatsApp marketing message will be dispatched directly from Admin Official WhatsApp (+91 99444 95366).'
                     : 'Test this offer on your personal mobile before sending to all contacts.'}
                 </p>
               </div>
@@ -688,7 +688,7 @@ export const CampaignsView: React.FC = () => {
                   </div>
                   <div>
                     <h4 className="text-xs font-bold leading-tight">
-                      {user?.role === 'SUPERADMIN' ? 'BitByte Official (+91 9363938143)' : (user?.client_details?.name || 'Business Account')}
+                      {user?.role === 'SUPERADMIN' ? 'BitByte Official (+91 99444 95366)' : (user?.client_details?.name || 'Business Account')}
                     </h4>
                     <p className="text-[10px] text-emerald-200">
                       {user?.role === 'SUPERADMIN' ? 'Admin Verified Gateway' : 'Official WhatsApp'}
