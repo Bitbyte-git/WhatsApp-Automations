@@ -248,10 +248,20 @@ export const CampaignsView: React.FC = () => {
             </span>
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-1.5">
-            {user?.role === 'SUPERADMIN' ? 'Admin Marketing Broadcast Engine' : 'Broadcast Campaigns'}
+            {user?.role === 'SUPERADMIN'
+              ? serviceType === 'UTILITY'
+                ? 'Admin Utility Notification Engine'
+                : serviceType === 'SERVICE'
+                ? 'Admin Service Reply Engine'
+                : 'Admin Marketing Broadcast Engine'
+              : 'Broadcast Campaigns'}
           </h1>
           <p className="text-xs text-slate-500 mt-1 max-w-2xl">
-            {user?.role === 'SUPERADMIN'
+            {serviceType === 'UTILITY'
+              ? 'Send low-cost (~₹0.14) Utility updates, invoices, project milestones & reminders from +91 99444 95366.'
+              : serviceType === 'SERVICE'
+              ? 'Send FREE (1,000/month) 24-hour customer service replies with images or text from +91 99444 95366.'
+              : user?.role === 'SUPERADMIN'
               ? 'Send WhatsApp marketing messages directly from the Admin Official WhatsApp Number (+91 99444 95366) to any customer or contact.'
               : 'Create real marketing announcements, add action buttons, and dispatch to your customer audience.'}
           </p>
@@ -355,14 +365,43 @@ export const CampaignsView: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Campaign Title *
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  {serviceType === 'UTILITY' ? 'Update Title *' : serviceType === 'SERVICE' ? 'Reply Subject *' : 'Campaign Title *'}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (serviceType === 'UTILITY') {
+                      setCampaignTitle('Project Milestone Update');
+                      setHeaderText('BitByte Account Update');
+                      setMessage('Your Web App & Mobile App project milestone has been completed. Please review the staging link shared to your email.');
+                    } else if (serviceType === 'SERVICE') {
+                      setCampaignTitle('Customer Support Reply');
+                      setHeaderText('BitByte Support Team');
+                      setMessage('Hello! Thank you for contacting BitByte Technologies. Our team is ready to assist you with Web App, Mobile App, E-Commerce & Digital Marketing solutions.');
+                    } else {
+                      setCampaignTitle('BitByte Digital Solutions Offer');
+                      setHeaderText('Special Announcement');
+                      setMessage('🚀 Scale Your Business with BitByte Technologies!\nCustom Web App, Mobile App, E-Commerce & Digital Marketing solutions.');
+                    }
+                  }}
+                  className="text-[11px] font-bold text-[#075E54] hover:underline"
+                >
+                  ✨ Fill {serviceType === 'UTILITY' ? 'Utility' : serviceType === 'SERVICE' ? 'Service' : 'Marketing'} Sample
+                </button>
+              </div>
               <input
                 type="text"
                 value={campaignTitle}
                 onChange={(e) => setCampaignTitle(e.target.value)}
-                placeholder="e.g. Festive Offer Announcement"
+                placeholder={
+                  serviceType === 'UTILITY'
+                    ? 'e.g. Payment Receipt / Project Update'
+                    : serviceType === 'SERVICE'
+                    ? 'e.g. Customer Support Reply'
+                    : 'e.g. Festive Offer Announcement'
+                }
                 className="w-full px-3.5 py-2 text-xs font-semibold border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54]"
               />
             </div>
@@ -375,7 +414,13 @@ export const CampaignsView: React.FC = () => {
                 type="text"
                 value={headerText}
                 onChange={(e) => setHeaderText(e.target.value)}
-                placeholder="e.g. Special Announcement"
+                placeholder={
+                  serviceType === 'UTILITY'
+                    ? 'e.g. Invoice #BB-1042 / Status Update'
+                    : serviceType === 'SERVICE'
+                    ? 'e.g. BitByte Support Team'
+                    : 'e.g. Special Announcement'
+                }
                 className="w-full px-3.5 py-2 text-xs font-semibold border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54]"
               />
             </div>
@@ -388,7 +433,13 @@ export const CampaignsView: React.FC = () => {
                 rows={5}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Type your WhatsApp broadcast message here..."
+                placeholder={
+                  serviceType === 'UTILITY'
+                    ? 'Type your Utility update here (e.g. Payment confirmed, Invoice generated, Project update — NO promotional offers)...'
+                    : serviceType === 'SERVICE'
+                    ? 'Type your 24h customer reply here (Free tier — works when customer messaged first)...'
+                    : 'Type your WhatsApp marketing broadcast message here...'
+                }
                 className="w-full p-3.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54] leading-relaxed text-slate-800"
               />
             </div>
@@ -443,7 +494,13 @@ export const CampaignsView: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2">
                 <ImageIcon className="w-4 h-4 text-[#075E54]" />
-                <span>1b. Marketing Image (Optional)</span>
+                <span>
+                  {serviceType === 'UTILITY'
+                    ? '1b. Utility Attachment Image (Optional)'
+                    : serviceType === 'SERVICE'
+                    ? '1b. Reply Image / Poster (Optional)'
+                    : '1b. Marketing Image (Optional)'}
+                </span>
               </h2>
               <span className="text-[11px] text-slate-400 font-medium">{marketingImages.length}/3 images</span>
             </div>
@@ -713,11 +770,11 @@ export const CampaignsView: React.FC = () => {
                   <span>
                     {deliveryMode === 'TEST'
                       ? (user?.role === 'SUPERADMIN'
-                          ? `🚀 Send WhatsApp Message from Admin to +91 ${testPhoneNumber || '...'}`
+                          ? `🚀 Send ${serviceType === 'UTILITY' ? 'Utility Update' : serviceType === 'SERVICE' ? 'Service Reply' : 'Marketing Message'} to +91 ${testPhoneNumber || '...'}`
                           : `⚡ Send Test Message to +91 ${testPhoneNumber || 'Phone'}`)
                       : deliveryMode === 'CUSTOM_COUNT'
-                      ? `🚀 Send Marketing Offer to ${Math.min(customSendCount, contacts.length || customSendCount)} Contacts`
-                      : `🚀 Send Marketing Offer to ALL ${contacts.length} Contacts`}
+                      ? `🚀 Send ${serviceType === 'UTILITY' ? 'Utility Update' : serviceType === 'SERVICE' ? 'Service Reply' : 'Marketing Offer'} to ${Math.min(customSendCount, contacts.length || customSendCount)} Contacts`
+                      : `🚀 Send ${serviceType === 'UTILITY' ? 'Utility Update' : serviceType === 'SERVICE' ? 'Service Reply' : 'Marketing Offer'} to ALL ${contacts.length} Contacts`}
                   </span>
                 </>
               )}
