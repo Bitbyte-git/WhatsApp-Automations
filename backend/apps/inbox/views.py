@@ -250,11 +250,10 @@ class SendMessageView(views.APIView):
 
         client = conversation.client
 
-        # Check client wallet
+        # Check client wallet (Superadmin has direct unlimited gateway access)
         wallet, _ = Wallet.objects.get_or_create(client=client, defaults={'balance': 0.0000})
-        # Standard service message charge: e.g. 0.40 INR
-        rate = Decimal('0.4000')
-        if wallet.balance < rate:
+        rate = Decimal('0.0000') if user.is_superadmin else Decimal('0.4000')
+        if not user.is_superadmin and wallet.balance < rate:
             return Response({
                 'error': 'Insufficient wallet balance to send WhatsApp message. Please recharge wallet.',
                 'wallet_balance': str(wallet.balance),
@@ -262,11 +261,14 @@ class SendMessageView(views.APIView):
             }, status=status.HTTP_402_PAYMENT_REQUIRED)
 
         # Dispatch real message via Meta Cloud API or Infisq WhatsApp Gateway
-        meta_client = MetaCloudAPIClient(
-            phone_number_id=whatsapp_account.phone_number_id,
-            access_token=whatsapp_account.access_token,
-            waba_id=whatsapp_account.waba_id
-        )
+        if whatsapp_account.phone_number_id and str(whatsapp_account.phone_number_id).isdigit():
+            meta_client = MetaCloudAPIClient(
+                phone_number_id=whatsapp_account.phone_number_id,
+                access_token=whatsapp_account.access_token,
+                waba_id=whatsapp_account.waba_id
+            )
+        else:
+            meta_client = MetaCloudAPIClient()
         infisq_client = InfisqWhatsAppClient()
 
         send_result = None
@@ -313,32 +315,33 @@ class SendMessageView(views.APIView):
                 raw_metadata=send_result.get('data', {})
             )
 
-            # Deduct wallet
-            wallet.balance -= rate
-            wallet.save(update_fields=['balance'])
+            # Deduct wallet only for non-superadmin billed replies
+            if rate > 0:
+                wallet.balance -= rate
+                wallet.save(update_fields=['balance'])
 
-            WalletTransaction.objects.create(
-                wallet=wallet,
-                client=client,
-                transaction_type='DEBIT',
-                amount=rate,
-                balance_after=wallet.balance,
-                category='SERVICE',
-                description=f"Outbound message to {contact.phone_number}",
-                reference_id=wamid or f"MSG-{message.id}",
-                status='SUCCESS'
-            )
+                WalletTransaction.objects.create(
+                    wallet=wallet,
+                    client=client,
+                    transaction_type='DEBIT',
+                    amount=rate,
+                    balance_after=wallet.balance,
+                    category='SERVICE',
+                    description=f"Outbound message to {contact.phone_number}",
+                    reference_id=wamid or f"MSG-{message.id}",
+                    status='SUCCESS'
+                )
 
-            UsageRecord.objects.create(
-                client=client,
-                whatsapp_account=whatsapp_account,
-                message=message,
-                category='SERVICE',
-                meta_cost=Decimal('0.3000'),
-                platform_fee=Decimal('0.0500'),
-                tax_amount=Decimal('0.0500'),
-                total_cost=rate
-            )
+                UsageRecord.objects.create(
+                    client=client,
+                    whatsapp_account=whatsapp_account,
+                    message=message,
+                    category='SERVICE',
+                    meta_cost=Decimal('0.3000'),
+                    platform_fee=Decimal('0.0500'),
+                    tax_amount=Decimal('0.0500'),
+                    total_cost=rate
+                )
 
             conversation.last_message_at = now
             conversation.last_message_preview = content[:200]

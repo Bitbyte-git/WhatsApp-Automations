@@ -44,7 +44,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentTab, setCurrentTab, child
   const [connectModalOpen, setConnectModalOpen] = useState(false);
 
   // Services Dropdown Toggle
-  const isServiceActive = ['marketing', 'campaigns', 'button-reply', 'chatbot'].includes(currentTab);
+  const isServiceActive = ['marketing', 'utility', 'service', 'campaigns', 'chatbot'].includes(currentTab);
   const [servicesOpen, setServicesOpen] = useState(true);
 
   useEffect(() => {
@@ -134,23 +134,39 @@ export const Layout: React.FC<LayoutProps> = ({ currentTab, setCurrentTab, child
                   <span>Marketing</span>
                 </button>
 
-                {/* 2. Button Reply */}
+                {/* 2. Utility */}
                 <button
                   onClick={() => {
-                    setCurrentTab('button-reply');
+                    setCurrentTab('utility');
                     setMobileMenuOpen(false);
                   }}
                   className={`w-full flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                    currentTab === 'button-reply'
+                    currentTab === 'utility'
                       ? 'bg-[#075E54] text-white shadow-2xs'
                       : 'text-gray-600 hover:bg-emerald-50 hover:text-[#075E54]'
                   }`}
                 >
-                  <MessageSquare className={`w-3.5 h-3.5 mr-2.5 ${currentTab === 'button-reply' ? 'text-[#25D366]' : 'text-gray-400'}`} />
-                  <span>Button Reply</span>
+                  <Receipt className={`w-3.5 h-3.5 mr-2.5 ${currentTab === 'utility' ? 'text-[#25D366]' : 'text-gray-400'}`} />
+                  <span>Utility</span>
                 </button>
 
-                {/* 3. Chatbot */}
+                {/* 3. Service */}
+                <button
+                  onClick={() => {
+                    setCurrentTab('service');
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    currentTab === 'service'
+                      ? 'bg-[#075E54] text-white shadow-2xs'
+                      : 'text-gray-600 hover:bg-emerald-50 hover:text-[#075E54]'
+                  }`}
+                >
+                  <MessageSquare className={`w-3.5 h-3.5 mr-2.5 ${currentTab === 'service' ? 'text-[#25D366]' : 'text-gray-400'}`} />
+                  <span>Service</span>
+                </button>
+
+                {/* 4. Chatbot */}
                 <button
                   onClick={() => {
                     setCurrentTab('chatbot');
@@ -454,17 +470,24 @@ export const Layout: React.FC<LayoutProps> = ({ currentTab, setCurrentTab, child
                 </button>
                 <button
                   onClick={() => { setCurrentTab('marketing'); setMobileMenuOpen(false); }}
-                  className={`w-full flex items-center px-3 py-2 rounded-xl text-sm font-semibold ${currentTab === 'marketing' ? 'bg-[#075E54] text-white' : 'text-slate-700'}`}
+                  className={`w-full flex items-center px-3 py-2 rounded-xl text-sm font-semibold ${currentTab === 'marketing' || currentTab === 'campaigns' ? 'bg-[#075E54] text-white' : 'text-slate-700'}`}
                 >
                   <Send className="w-4 h-4 mr-3" />
                   <span>Marketing</span>
                 </button>
                 <button
-                  onClick={() => { setCurrentTab('button-reply'); setMobileMenuOpen(false); }}
-                  className={`w-full flex items-center px-3 py-2 rounded-xl text-sm font-semibold ${currentTab === 'button-reply' ? 'bg-[#075E54] text-white' : 'text-slate-700'}`}
+                  onClick={() => { setCurrentTab('utility'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center px-3 py-2 rounded-xl text-sm font-semibold ${currentTab === 'utility' ? 'bg-[#075E54] text-white' : 'text-slate-700'}`}
+                >
+                  <Receipt className="w-4 h-4 mr-3" />
+                  <span>Utility</span>
+                </button>
+                <button
+                  onClick={() => { setCurrentTab('service'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center px-3 py-2 rounded-xl text-sm font-semibold ${currentTab === 'service' ? 'bg-[#075E54] text-white' : 'text-slate-700'}`}
                 >
                   <MessageSquare className="w-4 h-4 mr-3" />
-                  <span>Button Reply</span>
+                  <span>Service</span>
                 </button>
                 <button
                   onClick={() => { setCurrentTab('chatbot'); setMobileMenuOpen(false); }}
