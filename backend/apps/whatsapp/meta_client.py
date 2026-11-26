@@ -67,18 +67,25 @@ class MetaCloudAPIClient:
         """
         components = []
         if image_url:
+            # Meta template image headers require JPEG/PNG; convert Cloudinary WebP delivery URLs on the fly
+            meta_img_url = image_url.replace('f_webp', 'f_jpg')
+            if meta_img_url.lower().endswith('.webp'):
+                meta_img_url = meta_img_url[:-5] + '.jpg'
             components.append({
                 'type': 'header',
                 'parameters': [{
                     'type': 'image',
-                    'image': {'link': image_url}
+                    'image': {'link': meta_img_url}
                 }]
             })
+        import re
+        safe_body = re.sub(r'[\r\n\t]+', ' | ', body_text or '')
+        safe_body = re.sub(r' {2,}', ' ', safe_body).strip()[:1024]
         components.append({
             'type': 'body',
             'parameters': [{
                 'type': 'text',
-                'text': body_text[:1024]
+                'text': safe_body
             }]
         })
         return self.send_template_message(

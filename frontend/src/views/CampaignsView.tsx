@@ -17,6 +17,10 @@ import {
   Eye,
   FileSpreadsheet,
   Download,
+  ShieldCheck,
+  CheckCheck,
+  X,
+  Layers,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { api } from '../services/api';
@@ -167,7 +171,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
 
       setDeliveryMode('TEST');
       setTestPhoneNumber(list.join(', '));
-      setExcelSummary(`✅ ${list.length} unique numbers loaded from "${file.name}"`);
+      setExcelSummary(`${list.length} unique numbers loaded from "${file.name}"`);
     } catch {
       setAlertError('Excel file read panna mudiyala. Valid .xlsx, .xls, or .csv file upload pannunga.');
     } finally {
@@ -317,50 +321,44 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
   useEffect(() => { loadImages(); }, []);
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-12">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      {/* Studio Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white px-6 py-5 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
           <div className="flex items-center space-x-2">
-            <span className="px-2.5 py-1 text-[11px] font-bold uppercase rounded-md bg-emerald-50 text-[#075E54] border border-emerald-200">
-              {user?.role === 'SUPERADMIN' ? '👑 Admin Official WhatsApp Sender' : 'WhatsApp Broadcast Engine'}
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded-lg bg-emerald-50 text-[#075E54] border border-emerald-200/70">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#075E54]" />
+              <span>{user?.role === 'SUPERADMIN' ? 'Official Meta Gateway' : 'Broadcast Studio'}</span>
             </span>
-            <span className="text-xs text-slate-400 font-medium">•</span>
-            <span className="text-xs text-slate-600 font-semibold">
-              {user?.role === 'SUPERADMIN' ? 'BitByte Technologies (+91 99444 95366)' : (user?.client_details?.name || 'My Organization')}
+            <span className="text-xs text-slate-400 font-semibold">
+              {user?.role === 'SUPERADMIN' ? '+91 99444 95366' : (user?.client_details?.name || 'My Organization')}
             </span>
           </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-1.5">
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-2">
             {user?.role === 'SUPERADMIN'
               ? serviceType === 'UTILITY'
-                ? 'Admin Utility Notification Engine'
+                ? 'Utility Notification Studio'
                 : serviceType === 'SERVICE'
-                ? 'Admin Service Reply Engine'
-                : 'Admin Marketing Broadcast Engine'
+                ? 'Service Reply Studio'
+                : 'Marketing Broadcast Studio'
               : 'Broadcast Campaigns'}
           </h1>
-          <p className="text-xs text-slate-500 mt-1 max-w-2xl">
-            {serviceType === 'UTILITY'
-              ? 'Send low-cost (~₹0.14) Utility updates, invoices, project milestones & reminders from +91 99444 95366.'
-              : serviceType === 'SERVICE'
-              ? 'Send FREE (1,000/month) 24-hour customer service replies with images or text from +91 99444 95366.'
-              : user?.role === 'SUPERADMIN'
-              ? 'Send WhatsApp marketing messages directly from the Admin Official WhatsApp Number (+91 99444 95366) to any customer or contact.'
-              : 'Create real marketing announcements, add action buttons, and dispatch to your customer audience.'}
-          </p>
         </div>
 
         {/* Live Status Pill */}
-        <div className="flex items-center space-x-3 bg-emerald-50/80 border border-emerald-200 p-3 rounded-xl shrink-0">
-          <div className="w-10 h-10 rounded-lg bg-[#075E54] text-white flex items-center justify-center shadow-xs">
+        <div className="flex items-center space-x-3 bg-gradient-to-r from-emerald-50 to-white border border-emerald-200/80 px-4 py-3 rounded-xl shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-[#075E54] text-white flex items-center justify-center shadow-xs">
             <Smartphone className="w-5 h-5 text-[#25D366]" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-[#075E54]">
-              {user?.role === 'SUPERADMIN' ? 'Admin Gateway Status' : 'Wallet Balance'}
-            </p>
-            <p className="text-base font-black text-slate-900">
-              {user?.role === 'SUPERADMIN' ? '+91 99444 95366 (Active)' : `₹${parseFloat(walletBalance).toFixed(2)}`}
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-[#25D366] animate-pulse" />
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#075E54]">
+                {user?.role === 'SUPERADMIN' ? 'Gateway Online' : 'Wallet Balance'}
+              </p>
+            </div>
+            <p className="text-sm font-black text-slate-900 mt-0.5">
+              {user?.role === 'SUPERADMIN' ? '+91 99444 95366' : `₹${parseFloat(walletBalance).toFixed(2)}`}
             </p>
           </div>
         </div>
@@ -410,12 +408,13 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
                     } else {
                       setCampaignTitle('BitByte Digital Solutions Offer');
                       setHeaderText('Special Announcement');
-                      setMessage('🚀 Scale Your Business with BitByte Technologies!\nCustom Web App, Mobile App, E-Commerce & Digital Marketing solutions.');
+                      setMessage('Scale Your Business with BitByte Technologies!\nCustom Web App, Mobile App, E-Commerce & Digital Marketing solutions.');
                     }
                   }}
-                  className="text-[11px] font-bold text-[#075E54] hover:underline"
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-[#075E54] hover:text-[#064e46] bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/60 transition-colors"
                 >
-                  ✨ Fill {serviceType === 'UTILITY' ? 'Utility' : serviceType === 'SERVICE' ? 'Service' : 'Marketing'} Sample
+                  <Sparkles className="w-3 h-3" />
+                  <span>Fill {serviceType === 'UTILITY' ? 'Utility' : serviceType === 'SERVICE' ? 'Service' : 'Marketing'} Sample</span>
                 </button>
               </div>
               <input
@@ -505,9 +504,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
                       <button
                         type="button"
                         onClick={() => handleRemoveButton(idx)}
-                        className="text-slate-400 hover:text-rose-600 font-bold"
+                        className="text-slate-400 hover:text-rose-600 p-0.5 rounded"
                       >
-                        ✕
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   ))}
@@ -649,10 +648,10 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
                 type="button"
                 onClick={handleConnectContacts}
                 disabled={connectingContacts}
-                className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-[#075E54] border border-emerald-200 rounded-lg text-xs font-bold transition-colors flex items-center space-x-1.5"
+                className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-[#075E54] border border-emerald-200 rounded-lg text-xs font-bold transition-colors inline-flex items-center space-x-1.5"
               >
-                <Smartphone className="w-3.5 h-3.5" />
-                <span>{connectingContacts ? 'Connecting...' : '📱 Connect / Sync Contacts'}</span>
+                <Users className="w-3.5 h-3.5" />
+                <span>{connectingContacts ? 'Syncing...' : 'Sync Contacts'}</span>
               </button>
             </div>
 
@@ -702,11 +701,12 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
                     : 'border-slate-200 bg-white hover:bg-slate-50'
                 }`}
               >
-                <p className="text-xs font-bold text-emerald-950">
-                  {user?.role === 'SUPERADMIN' ? '📱 Specific Number(s)' : '⚡ Single Test'}
+                <p className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                  <Smartphone className="w-3.5 h-3.5 text-[#075E54]" />
+                  <span>{user?.role === 'SUPERADMIN' ? 'Specific Number(s)' : 'Single Test'}</span>
                 </p>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  {user?.role === 'SUPERADMIN' ? 'Enter 1 or 10+ customer phones' : 'Test on own phone'}
+                  {user?.role === 'SUPERADMIN' ? '1 or 10+ numbers / Excel' : 'Test on own phone'}
                 </p>
               </button>
             </div>
@@ -829,14 +829,14 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
                       ? (() => {
                           const count = testPhoneNumber.split(/[\n,\s]+/).filter((n) => n.trim().replace(/[^0-9+]/g, '').length >= 10).length;
                           const label = serviceType === 'UTILITY' ? 'Utility Update' : serviceType === 'SERVICE' ? 'Service Reply' : 'Marketing Message';
-                          if (count > 1) return `🚀 Send ${label} to ${count} Numbers`;
+                          if (count > 1) return `Send ${label} to ${count} Numbers`;
                           return user?.role === 'SUPERADMIN'
-                            ? `🚀 Send ${label} to +91 ${testPhoneNumber || '...'}`
-                            : `⚡ Send Test Message to +91 ${testPhoneNumber || 'Phone'}`;
+                            ? `Send ${label} to +91 ${testPhoneNumber || '...'}`
+                            : `Send Test Message to +91 ${testPhoneNumber || 'Phone'}`;
                         })()
                       : deliveryMode === 'CUSTOM_COUNT'
-                      ? `🚀 Send ${serviceType === 'UTILITY' ? 'Utility Update' : serviceType === 'SERVICE' ? 'Service Reply' : 'Marketing Offer'} to ${Math.min(customSendCount, contacts.length || customSendCount)} Contacts`
-                      : `🚀 Send ${serviceType === 'UTILITY' ? 'Utility Update' : serviceType === 'SERVICE' ? 'Service Reply' : 'Marketing Offer'} to ALL ${contacts.length} Contacts`}
+                      ? `Send ${serviceType === 'UTILITY' ? 'Utility Update' : serviceType === 'SERVICE' ? 'Service Reply' : 'Marketing Offer'} to ${Math.min(customSendCount, contacts.length || customSendCount)} Contacts`
+                      : `Send ${serviceType === 'UTILITY' ? 'Utility Update' : serviceType === 'SERVICE' ? 'Service Reply' : 'Marketing Offer'} to ALL ${contacts.length} Contacts`}
                   </span>
                 </>
               )}
@@ -885,22 +885,36 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
                 </div>
 
                 {/* Message Bubble */}
-                <div className="bg-white rounded-2xl rounded-tl-xs p-3.5 shadow-sm max-w-[92%] border border-slate-200/60 space-y-2">
-                  {headerText && (
-                    <div className="font-bold text-xs text-slate-900 border-b border-slate-100 pb-1">
-                      {headerText}
+                {(() => {
+                  const previewImg = marketingImages.find((img: any) => img.id === selectedImageId);
+                  return (
+                    <div className="bg-white rounded-2xl rounded-tl-xs p-2.5 shadow-sm max-w-[92%] border border-slate-200/60 space-y-2">
+                      {previewImg && (
+                        <img
+                          src={previewImg.webp_url || previewImg.cloudinary_url}
+                          alt={previewImg.name}
+                          className="w-full h-36 object-cover rounded-xl"
+                        />
+                      )}
+                      <div className="px-1 space-y-1.5">
+                        {headerText && (
+                          <div className="font-bold text-xs text-slate-900 border-b border-slate-100 pb-1">
+                            {headerText}
+                          </div>
+                        )}
+
+                        <div className="text-[11px] text-slate-800 whitespace-pre-wrap leading-relaxed">
+                          {message || 'Your broadcast message preview will appear here...'}
+                        </div>
+
+                        <div className="flex items-center justify-end space-x-1 text-[9px] text-slate-400 pt-0.5">
+                          <span>12:00 PM</span>
+                          <CheckCheck className="w-3 h-3 text-sky-500" />
+                        </div>
+                      </div>
                     </div>
-                  )}
-
-                  <div className="text-[11px] text-slate-800 whitespace-pre-wrap leading-relaxed">
-                    {message || 'Your broadcast message preview will appear here...'}
-                  </div>
-
-                  <div className="flex items-center justify-end space-x-1 text-[9px] text-slate-400 pt-1">
-                    <span>12:00 PM</span>
-                    <span className="text-sky-500 font-bold">✓✓</span>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* Buttons */}
                 {buttons.length > 0 && (
