@@ -3,17 +3,15 @@ import hashlib
 import json
 import logging
 from django.conf import settings
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse
 from django.utils import timezone
-from rest_framework import views, permissions, status, viewsets
-from rest_framework.response import Response
+from rest_framework import views, permissions, viewsets
 
 from apps.whatsapp.models import WhatsAppAccount, WebhookEvent
 from apps.inbox.models import Contact, Conversation, Message
 from apps.chatbot.models import ChatbotConfiguration
 from apps.chatbot.ai_service import ChatbotAIService
 from apps.whatsapp.meta_client import MetaCloudAPIClient
-from apps.whatsapp.infisq_client import InfisqWhatsAppClient
 from apps.whatsapp.serializers import WebhookEventSerializer
 
 logger = logging.getLogger(__name__)
@@ -170,6 +168,7 @@ class MetaWhatsAppWebhookView(views.APIView):
                     # Extract content based on type
                     content = ''
                     media_url = ''
+                    interactive_id = ''
                     if msg_type == 'TEXT':
                         content = msg_data.get('text', {}).get('body', '')
                     elif msg_type in ['IMAGE', 'VIDEO', 'DOCUMENT', 'AUDIO']:
@@ -178,7 +177,10 @@ class MetaWhatsAppWebhookView(views.APIView):
                         content = media_obj.get('caption', f"[{msg_type} Attachment]")
                     elif msg_type == 'INTERACTIVE':
                         interactive = msg_data.get('interactive', {})
-                        content = interactive.get('button_reply', {}).get('title', '') or interactive.get('list_reply', {}).get('title', '')
+                        btn_reply = interactive.get('button_reply', {})
+                        list_reply = interactive.get('list_reply', {})
+                        interactive_id = btn_reply.get('id', '') or list_reply.get('id', '')
+                        content = btn_reply.get('title', '') or list_reply.get('title', '')
                     else:
                         content = f"[{msg_type} message]"
 
@@ -212,45 +214,100 @@ class MetaWhatsAppWebhookView(views.APIView):
                         processed_at=now
                     )
 
-                    # Check if client has active Chatbot Configuration in database
-                    chatbot_config = ChatbotConfiguration.objects.filter(client=client, is_enabled=True).first()
-                    if chatbot_config and content:
+                    # ── BitByte Interactive Service Bot Flow (FREE 24h Service Window) ──
+                    if content:
                         cleaned_content = content.strip().lower()
-                        reply_text = ""
-
-                        # Check handover keywords
-                        handover_keys = [k.strip().lower() for k in (chatbot_config.handover_keywords or '').split(',') if k.strip()]
-                        if any(hk in cleaned_content for hk in handover_keys):
-                            reply_text = chatbot_config.handover_message or "Connecting you to an agent. Please hold on."
-                        elif cleaned_content in ['hi', 'hello', 'hey', 'start', 'menu']:
-                            reply_text = chatbot_config.welcome_message or f"Hello! Welcome to {client.name}. How can we assist you?"
-                        else:
-                            # Generate AI response using client's real knowledge base
-                            ai_service = ChatbotAIService(chatbot_config)
-                            ai_resp = ai_service.generate_response(content)
-                            reply_text = ai_resp.get('response') or chatbot_config.fallback_message
-
-                        if reply_text:
-                            infisq_client = InfisqWhatsAppClient()
+                        if account.phone_number_id and str(account.phone_number_id).isdigit():
                             meta_client = MetaCloudAPIClient(
                                 phone_number_id=account.phone_number_id,
                                 access_token=account.access_token,
                                 waba_id=account.waba_id
                             )
-                            if infisq_client.is_configured:
-                                infisq_client.send_text_message(contact=from_phone, message=reply_text)
-                            elif meta_client.is_configured:
-                                meta_client.send_text_message(to_phone_number=from_phone, text_content=reply_text)
+                        else:
+                            meta_client = MetaCloudAPIClient()
 
+                        bot_sent_text = ''
+                        bot_res = None
+
+                        if meta_client.is_configured:
+                            greeting_name = sender_name or 'there'
+                            if cleaned_content in ['hi', 'hello', 'hey', 'start', 'menu', 'main menu'] or interactive_id == 'btn_main_menu':
+                                bot_sent_text = f"Welcome to {client.name}, {greeting_name}! Please explore our services:"
+                                sections = [{
+                                    'title': 'Our Services',
+                                    'rows': [
+                                        {'id': 'srv_webapp', 'title': 'Web App Development', 'description': 'Custom Websites, SaaS & Portals'},
+                                        {'id': 'srv_mobile', 'title': 'Mobile App Development', 'description': 'Android & iOS Business Apps'},
+                                        {'id': 'srv_ecommerce', 'title': 'E-Commerce Stores', 'description': 'Online Store + Payment Gateway'},
+                                        {'id': 'srv_marketing', 'title': 'Digital Marketing', 'description': 'Meta Ads, Google Ads & SEO'},
+                                        {'id': 'srv_whatsapp', 'title': 'WhatsApp Cloud API', 'description': 'Bulk Sender & Automation Bot'},
+                                        {'id': 'srv_contact', 'title': 'Talk to Our Team', 'description': 'Direct Call & Free Consultation'},
+                                    ]
+                                }]
+                                bot_res = meta_client.send_interactive_list(
+                                    to_phone_number=from_phone,
+                                    header_text=client.name,
+                                    body_text=f"Hello {greeting_name}! Welcome to {client.name}.\n\nTap below to explore our services and get instant details:",
+                                    button_label='Explore Services',
+                                    sections=sections,
+                                    footer_text='Powered by BitByte WhatsApp Engine'
+                                )
+                            elif interactive_id in ['srv_webapp', 'srv_mobile', 'srv_ecommerce', 'srv_marketing', 'srv_whatsapp']:
+                                service_details = {
+                                    'srv_webapp': '*Web App Development*\nWe build ultra-fast custom Websites, SaaS Dashboards & Portals tailored for your business.',
+                                    'srv_mobile': '*Mobile App Development*\nNative & cross-platform Android & iOS apps with modern UI and smooth performance.',
+                                    'srv_ecommerce': '*E-Commerce Solutions*\nComplete online shopping store with Cart, UPI/Razorpay checkout & Order tracking.',
+                                    'srv_marketing': '*Digital Marketing*\nGrow leads & sales with targeted Meta Ads, Google Ads, SEO & Branding.',
+                                    'srv_whatsapp': '*WhatsApp Cloud API*\nOfficial Meta WhatsApp Broadcast, Bulk Excel Sender & Automated Interactive Bot.',
+                                }
+                                bot_sent_text = service_details[interactive_id]
+                                bot_res = meta_client.send_interactive_buttons(
+                                    to_phone_number=from_phone,
+                                    header_text=client.name,
+                                    body_text=f"{bot_sent_text}\n\nHow would you like to proceed?",
+                                    buttons=[
+                                        {'id': 'btn_get_quote', 'title': 'Get Pricing'},
+                                        {'id': 'btn_book_call', 'title': 'Book Free Call'},
+                                        {'id': 'btn_main_menu', 'title': 'Main Menu'},
+                                    ],
+                                    footer_text='Select an option below'
+                                )
+                            elif interactive_id in ['btn_get_quote', 'btn_book_call', 'srv_contact']:
+                                bot_sent_text = (
+                                    f"Thank you {greeting_name}! Our team will reach out to you shortly.\n\n"
+                                    f"Direct Call / WhatsApp: +91 93639 38143\n"
+                                    f"Office: BitByte Technologies, Salem, TN"
+                                )
+                                bot_res = meta_client.send_interactive_buttons(
+                                    to_phone_number=from_phone,
+                                    body_text=bot_sent_text,
+                                    buttons=[{'id': 'btn_main_menu', 'title': 'Main Menu'}],
+                                    footer_text='BitByte Support'
+                                )
+                            else:
+                                # Fallback to AI Chatbot if enabled
+                                chatbot_config = ChatbotConfiguration.objects.filter(client=client, is_enabled=True).first()
+                                if chatbot_config:
+                                    handover_keys = [k.strip().lower() for k in (chatbot_config.handover_keywords or '').split(',') if k.strip()]
+                                    if any(hk in cleaned_content for hk in handover_keys):
+                                        bot_sent_text = chatbot_config.handover_message or "Connecting you to an agent. Please hold on."
+                                    else:
+                                        ai_service = ChatbotAIService(chatbot_config)
+                                        ai_resp = ai_service.generate_response(content)
+                                        bot_sent_text = ai_resp.get('response') or chatbot_config.fallback_message
+                                    if bot_sent_text:
+                                        bot_res = meta_client.send_text_message(to_phone_number=from_phone, text_content=bot_sent_text)
+
+                        if bot_res and bot_res.get('success') and bot_sent_text:
                             Message.objects.create(
                                 conversation=conv,
                                 client=client,
                                 whatsapp_account=account,
                                 contact=contact,
-                                wamid=f"BOT-{int(timezone.now().timestamp())}",
+                                wamid=bot_res.get('wamid') or f"BOT-{int(timezone.now().timestamp())}",
                                 direction='OUTBOUND',
-                                message_type='TEXT',
-                                content=reply_text,
+                                message_type='INTERACTIVE',
+                                content=bot_sent_text,
                                 status='SENT',
                                 sent_at=now
                             )

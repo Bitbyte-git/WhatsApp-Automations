@@ -387,12 +387,26 @@ class CampaignViewSet(viewsets.ModelViewSet):
                     full_message = f'*{header_text or service_name}*\n\n{formatted_body}\n\n_{footer_text}_'
 
                     if message_category == 'SERVICE':
-                        # Service Window Reply (1,000 FREE/month when customer messaged in last 24h)
+                        # Service Window Reply (FREE when customer messaged in last 24h)
                         if image_url:
                             res = meta_client.send_image_message(
                                 to_phone_number=cleaned_phone,
                                 image_url=image_url,
                                 caption=full_message
+                            )
+                            if res and res.get('success') and button_labels:
+                                meta_client.send_interactive_buttons(
+                                    to_phone_number=cleaned_phone,
+                                    body_text='Please choose an option below:',
+                                    buttons=button_labels
+                                )
+                        elif button_labels:
+                            res = meta_client.send_interactive_buttons(
+                                to_phone_number=cleaned_phone,
+                                body_text=formatted_body,
+                                buttons=button_labels,
+                                header_text=header_text or service_name,
+                                footer_text=footer_text
                             )
                         else:
                             res = meta_client.send_text_message(

@@ -188,6 +188,91 @@ class MetaCloudAPIClient:
             logger.error(f"Meta API send image error: {e}")
             return {'success': False, 'error': str(e)}
 
+    def send_interactive_buttons(self, to_phone_number, body_text, buttons, header_text=None, footer_text=None):
+        """
+        Sends up to 3 clickable Quick Reply buttons inside a 24h Service window (FREE).
+        buttons: list of dicts [{'id': 'btn_1', 'title': 'Label'}] or list of strings.
+        """
+        if not self.is_configured:
+            return {'success': False, 'error': 'WhatsApp integration is not configured.'}
+
+        action_buttons = []
+        for idx, b in enumerate((buttons or [])[:3]):
+            if isinstance(b, dict):
+                btn_id = str(b.get('id') or f'btn_{idx+1}')[:256]
+                btn_title = str(b.get('title') or b.get('label') or f'Option {idx+1}')[:20]
+            else:
+                btn_id = f'btn_{idx+1}'
+                btn_title = str(b)[:20]
+            action_buttons.append({
+                'type': 'reply',
+                'reply': {'id': btn_id, 'title': btn_title}
+            })
+
+        interactive_obj = {
+            'type': 'button',
+            'body': {'text': (body_text or '')[:1024]},
+            'action': {'buttons': action_buttons}
+        }
+        if header_text:
+            interactive_obj['header'] = {'type': 'text', 'text': str(header_text)[:60]}
+        if footer_text:
+            interactive_obj['footer'] = {'text': str(footer_text)[:60]}
+
+        url = f"{self.base_url}/{self.phone_number_id}/messages"
+        payload = {
+            'messaging_product': 'whatsapp',
+            'recipient_type': 'individual',
+            'to': to_phone_number.replace('+', '').replace(' ', ''),
+            'type': 'interactive',
+            'interactive': interactive_obj
+        }
+        try:
+            response = requests.post(url, json=payload, headers=self._get_headers(), timeout=15)
+            data = response.json()
+            if response.status_code in [200, 201]:
+                return {'success': True, 'wamid': data.get('messages', [{}])[0].get('id'), 'data': data}
+            return {'success': False, 'error': data.get('error', {}).get('message', 'Interactive send failed'), 'data': data}
+        except requests.exceptions.RequestException as e:
+            return {'success': False, 'error': str(e)}
+
+    def send_interactive_list(self, to_phone_number, body_text, button_label, sections, header_text=None, footer_text=None):
+        """
+        Sends an SBI-style expandable Interactive List Menu inside a 24h Service window (FREE).
+        """
+        if not self.is_configured:
+            return {'success': False, 'error': 'WhatsApp integration is not configured.'}
+
+        interactive_obj = {
+            'type': 'list',
+            'body': {'text': (body_text or '')[:1024]},
+            'action': {
+                'button': str(button_label or 'Explore Services')[:20],
+                'sections': sections
+            }
+        }
+        if header_text:
+            interactive_obj['header'] = {'type': 'text', 'text': str(header_text)[:60]}
+        if footer_text:
+            interactive_obj['footer'] = {'text': str(footer_text)[:60]}
+
+        url = f"{self.base_url}/{self.phone_number_id}/messages"
+        payload = {
+            'messaging_product': 'whatsapp',
+            'recipient_type': 'individual',
+            'to': to_phone_number.replace('+', '').replace(' ', ''),
+            'type': 'interactive',
+            'interactive': interactive_obj
+        }
+        try:
+            response = requests.post(url, json=payload, headers=self._get_headers(), timeout=15)
+            data = response.json()
+            if response.status_code in [200, 201]:
+                return {'success': True, 'wamid': data.get('messages', [{}])[0].get('id'), 'data': data}
+            return {'success': False, 'error': data.get('error', {}).get('message', 'Interactive list failed'), 'data': data}
+        except requests.exceptions.RequestException as e:
+            return {'success': False, 'error': str(e)}
+
     def fetch_templates(self):
         """
         Retrieves all templates registered under the WABA.
