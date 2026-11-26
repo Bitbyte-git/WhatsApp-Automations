@@ -13,7 +13,7 @@ class Command(BaseCommand):
             email=admin_email,
             defaults={
                 'full_name': 'Senthilkumar S (BitByte Founder)',
-                'phone_number': '+919363938143',
+                'phone_number': '+919944495366',
                 'is_staff': True,
                 'is_superuser': True,
                 'role': 'SUPERADMIN'

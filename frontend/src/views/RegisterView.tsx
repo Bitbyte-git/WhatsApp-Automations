@@ -251,7 +251,7 @@ export const RegisterView: React.FC = () => {
                   <input
                     type="tel"
                     required
-                    placeholder="+91 9363938143"
+                    placeholder="+91 99444 95366"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     className="w-full pl-11 pr-4 py-2.5 text-sm bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-[#25D366] focus:ring-1 focus:ring-[#25D366] transition-all"

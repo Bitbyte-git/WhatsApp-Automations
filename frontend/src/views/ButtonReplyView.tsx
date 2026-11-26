@@ -185,7 +185,7 @@ export const ButtonReplyView: React.FC = () => {
             type="text"
             value={testPhoneNumber}
             onChange={(e) => setTestPhoneNumber(e.target.value)}
-            placeholder="Test phone (e.g. 9363938143)"
+            placeholder="Test phone (e.g. 9944495366)"
             className="px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54]"
           />
           <button

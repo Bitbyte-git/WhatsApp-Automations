@@ -256,7 +256,7 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
                   Client WhatsApp Account
                 </p>
                 <p className="text-sm font-bold text-slate-800">
-                  DJ Photograph (+91 9363938143)
+                  BitByte Official (+91 99444 95366)
                 </p>
               </div>
             </div>
@@ -354,7 +354,7 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
                   <Sparkles className="w-4 h-4 mr-1.5 text-emerald-600" />
                   Auto-Sync WhatsApp Registered Device Contacts
                 </p>
-                Verify and connect Naveen's WhatsApp account (+91 9363938143) to load all verified customer contacts into your database.
+                Verify and connect BitByte Official WhatsApp account (+91 99444 95366) to load all verified customer contacts into your database.
               </div>
 
               <button
@@ -422,7 +422,7 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
                   rows={5}
                   value={pasteText}
                   onChange={(e) => setPasteText(e.target.value)}
-                  placeholder={`9876543210\n9842100000\nNaveen, 9363938143\nSenthilkumar, 9894000000`}
+                  placeholder={`9876543210\n9842100000\nCustomer 1, 9944495366\nSenthilkumar, 9894000000`}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:border-[#075E54] focus:bg-white resize-none"
                 />
               </div>

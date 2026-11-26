@@ -47,6 +47,7 @@ class ChatbotConfiguration(TimeStampedModel):
     )
     max_tokens = models.PositiveIntegerField(default=500)
     temperature = models.DecimalField(max_digits=3, decimal_places=2, default=0.7)
+    interactive_flow = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return f"Chatbot for {self.client.name} ({'Enabled' if self.is_enabled else 'Disabled'})"

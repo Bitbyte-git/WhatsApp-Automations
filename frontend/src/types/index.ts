@@ -162,6 +162,7 @@ export interface ChatbotConfig {
   handover_message: string;
   max_tokens: number;
   temperature: number;
+  interactive_flow?: any;
   documents_count?: number;
   created_at: string;
 }

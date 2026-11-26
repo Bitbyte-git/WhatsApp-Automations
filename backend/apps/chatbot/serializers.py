@@ -27,7 +27,7 @@ class ChatbotConfigSerializer(serializers.ModelSerializer):
             'model_name', 'system_prompt', 'welcome_message',
             'fallback_message', 'handover_enabled', 'handover_keywords',
             'handover_message', 'max_tokens', 'temperature',
-            'documents_count', 'created_at', 'updated_at'
+            'interactive_flow', 'documents_count', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 

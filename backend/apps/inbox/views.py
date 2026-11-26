@@ -123,7 +123,7 @@ class ContactViewSet(viewsets.ModelViewSet):
         return Response({
             'success': True,
             'connected': True,
-            'device_number': '+91 9363938143',
+            'device_number': '+91 99444 95366',
             'device_owner': client.name,
             'total_contacts': total_synced,
             'message': f"WhatsApp device active. {total_synced} real contacts verified on your account.",

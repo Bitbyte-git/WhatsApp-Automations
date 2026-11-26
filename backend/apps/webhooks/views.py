@@ -214,7 +214,7 @@ class MetaWhatsAppWebhookView(views.APIView):
                         processed_at=now
                     )
 
-                    # ── BitByte Interactive Service Bot Flow (FREE 24h Service Window) ──
+                    # ── Dynamic Database-Driven Interactive Menu & Chatbot Flow ──
                     if content:
                         cleaned_content = content.strip().lower()
                         if account.phone_number_id and str(account.phone_number_id).isdigit():
@@ -228,75 +228,79 @@ class MetaWhatsAppWebhookView(views.APIView):
 
                         bot_sent_text = ''
                         bot_res = None
+                        chatbot_config = ChatbotConfiguration.objects.filter(client=client).first()
+                        flow = (chatbot_config.interactive_flow or {}) if chatbot_config else {}
+                        flow_enabled = bool(flow.get('enabled'))
+                        menu_items = flow.get('menu_items') or []
+                        action_buttons = flow.get('action_buttons') or []
 
                         if meta_client.is_configured:
                             greeting_name = sender_name or 'there'
-                            if cleaned_content in ['hi', 'hello', 'hey', 'start', 'menu', 'main menu'] or interactive_id == 'btn_main_menu':
-                                bot_sent_text = f"Welcome to {client.name}, {greeting_name}! Please explore our services:"
-                                sections = [{
-                                    'title': 'Our Services',
-                                    'rows': [
-                                        {'id': 'srv_webapp', 'title': 'Web App Development', 'description': 'Custom Websites, SaaS & Portals'},
-                                        {'id': 'srv_mobile', 'title': 'Mobile App Development', 'description': 'Android & iOS Business Apps'},
-                                        {'id': 'srv_ecommerce', 'title': 'E-Commerce Stores', 'description': 'Online Store + Payment Gateway'},
-                                        {'id': 'srv_marketing', 'title': 'Digital Marketing', 'description': 'Meta Ads, Google Ads & SEO'},
-                                        {'id': 'srv_whatsapp', 'title': 'WhatsApp Cloud API', 'description': 'Bulk Sender & Automation Bot'},
-                                        {'id': 'srv_contact', 'title': 'Talk to Our Team', 'description': 'Direct Call & Free Consultation'},
+
+                            # 1. Interactive Menu Flow (Configured by Admin/Client in Dashboard)
+                            if flow_enabled and menu_items:
+                                matched_item = next((m for m in menu_items if str(m.get('id')) == interactive_id), None)
+                                matched_btn = next((b for b in action_buttons if str(b.get('id')) == interactive_id), None)
+
+                                if cleaned_content in ['hi', 'hello', 'hey', 'start', 'menu', 'main menu'] or interactive_id == 'btn_main_menu':
+                                    header_txt = str(flow.get('header_text') or client.name)[:60]
+                                    welcome_txt = str(flow.get('welcome_text') or f"Hello {greeting_name}! Welcome to {client.name}.\n\nTap below to explore:")
+                                    btn_label = str(flow.get('menu_button_label') or 'Explore Menu')[:20]
+                                    footer_txt = str(flow.get('footer_text') or client.name)[:60]
+
+                                    rows = []
+                                    for idx, item in enumerate(menu_items[:10]):
+                                        rows.append({
+                                            'id': str(item.get('id') or f'item_{idx+1}'),
+                                            'title': str(item.get('title') or f'Option {idx+1}')[:24],
+                                            'description': str(item.get('description') or '')[:72]
+                                        })
+
+                                    bot_sent_text = welcome_txt
+                                    bot_res = meta_client.send_interactive_list(
+                                        to_phone_number=from_phone,
+                                        header_text=header_txt,
+                                        body_text=welcome_txt,
+                                        button_label=btn_label,
+                                        sections=[{'title': header_txt[:24], 'rows': rows}],
+                                        footer_text=footer_txt
+                                    )
+                                elif matched_item:
+                                    bot_sent_text = str(matched_item.get('reply_text') or matched_item.get('title') or '')
+                                    follow_btns = [
+                                        {'id': str(b.get('id')), 'title': str(b.get('title'))[:20]}
+                                        for b in action_buttons[:2] if b.get('title')
                                     ]
-                                }]
-                                bot_res = meta_client.send_interactive_list(
-                                    to_phone_number=from_phone,
-                                    header_text=client.name,
-                                    body_text=f"Hello {greeting_name}! Welcome to {client.name}.\n\nTap below to explore our services and get instant details:",
-                                    button_label='Explore Services',
-                                    sections=sections,
-                                    footer_text='Powered by BitByte WhatsApp Engine'
-                                )
-                            elif interactive_id in ['srv_webapp', 'srv_mobile', 'srv_ecommerce', 'srv_marketing', 'srv_whatsapp']:
-                                service_details = {
-                                    'srv_webapp': '*Web App Development*\nWe build ultra-fast custom Websites, SaaS Dashboards & Portals tailored for your business.',
-                                    'srv_mobile': '*Mobile App Development*\nNative & cross-platform Android & iOS apps with modern UI and smooth performance.',
-                                    'srv_ecommerce': '*E-Commerce Solutions*\nComplete online shopping store with Cart, UPI/Razorpay checkout & Order tracking.',
-                                    'srv_marketing': '*Digital Marketing*\nGrow leads & sales with targeted Meta Ads, Google Ads, SEO & Branding.',
-                                    'srv_whatsapp': '*WhatsApp Cloud API*\nOfficial Meta WhatsApp Broadcast, Bulk Excel Sender & Automated Interactive Bot.',
-                                }
-                                bot_sent_text = service_details[interactive_id]
-                                bot_res = meta_client.send_interactive_buttons(
-                                    to_phone_number=from_phone,
-                                    header_text=client.name,
-                                    body_text=f"{bot_sent_text}\n\nHow would you like to proceed?",
-                                    buttons=[
-                                        {'id': 'btn_get_quote', 'title': 'Get Pricing'},
-                                        {'id': 'btn_book_call', 'title': 'Book Free Call'},
-                                        {'id': 'btn_main_menu', 'title': 'Main Menu'},
-                                    ],
-                                    footer_text='Select an option below'
-                                )
-                            elif interactive_id in ['btn_get_quote', 'btn_book_call', 'srv_contact']:
-                                bot_sent_text = (
-                                    f"Thank you {greeting_name}! Our team will reach out to you shortly.\n\n"
-                                    f"Direct Call / WhatsApp: +91 93639 38143\n"
-                                    f"Office: BitByte Technologies, Salem, TN"
-                                )
-                                bot_res = meta_client.send_interactive_buttons(
-                                    to_phone_number=from_phone,
-                                    body_text=bot_sent_text,
-                                    buttons=[{'id': 'btn_main_menu', 'title': 'Main Menu'}],
-                                    footer_text='BitByte Support'
-                                )
-                            else:
-                                # Fallback to AI Chatbot if enabled
-                                chatbot_config = ChatbotConfiguration.objects.filter(client=client, is_enabled=True).first()
-                                if chatbot_config:
-                                    handover_keys = [k.strip().lower() for k in (chatbot_config.handover_keywords or '').split(',') if k.strip()]
-                                    if any(hk in cleaned_content for hk in handover_keys):
-                                        bot_sent_text = chatbot_config.handover_message or "Connecting you to an agent. Please hold on."
-                                    else:
-                                        ai_service = ChatbotAIService(chatbot_config)
-                                        ai_resp = ai_service.generate_response(content)
-                                        bot_sent_text = ai_resp.get('response') or chatbot_config.fallback_message
-                                    if bot_sent_text:
-                                        bot_res = meta_client.send_text_message(to_phone_number=from_phone, text_content=bot_sent_text)
+                                    follow_btns.append({'id': 'btn_main_menu', 'title': 'Main Menu'})
+                                    bot_res = meta_client.send_interactive_buttons(
+                                        to_phone_number=from_phone,
+                                        header_text=str(matched_item.get('title') or client.name)[:60],
+                                        body_text=bot_sent_text,
+                                        buttons=follow_btns[:3],
+                                        footer_text=str(flow.get('footer_text') or client.name)[:60]
+                                    )
+                                elif matched_btn:
+                                    bot_sent_text = str(matched_btn.get('reply_text') or 'Thank you! Our team will contact you shortly.')
+                                    bot_res = meta_client.send_interactive_buttons(
+                                        to_phone_number=from_phone,
+                                        body_text=bot_sent_text,
+                                        buttons=[{'id': 'btn_main_menu', 'title': 'Main Menu'}],
+                                        footer_text=str(flow.get('footer_text') or client.name)[:60]
+                                    )
+
+                            # 2. AI Chatbot fallback if not handled by Interactive Menu and AI is enabled
+                            if not bot_res and chatbot_config and chatbot_config.is_enabled:
+                                handover_keys = [k.strip().lower() for k in (chatbot_config.handover_keywords or '').split(',') if k.strip()]
+                                if any(hk in cleaned_content for hk in handover_keys):
+                                    bot_sent_text = chatbot_config.handover_message or "Connecting you to an agent. Please hold on."
+                                elif cleaned_content in ['hi', 'hello', 'hey', 'start', 'menu'] and not flow_enabled:
+                                    bot_sent_text = chatbot_config.welcome_message or f"Hello! Welcome to {client.name}."
+                                else:
+                                    ai_service = ChatbotAIService(chatbot_config)
+                                    ai_resp = ai_service.generate_response(content)
+                                    bot_sent_text = ai_resp.get('response') or chatbot_config.fallback_message
+                                if bot_sent_text:
+                                    bot_res = meta_client.send_text_message(to_phone_number=from_phone, text_content=bot_sent_text)
 
                         if bot_res and bot_res.get('success') and bot_sent_text:
                             Message.objects.create(

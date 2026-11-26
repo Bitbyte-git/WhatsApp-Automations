@@ -13,6 +13,7 @@ import {
   CheckCircle,
   AlertCircle,
   Headphones,
+  ListChecks,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { ChatbotConfig, KnowledgeDocument } from '../types';
@@ -35,6 +36,15 @@ export const ChatbotView: React.FC = () => {
   const [handoverEnabled, setHandoverEnabled] = useState(true);
   const [handoverKeywords, setHandoverKeywords] = useState('');
   const [handoverMessage, setHandoverMessage] = useState('');
+
+  // Dynamic Interactive Menu & Button Flow State (Zero hardcoded business text)
+  const [flowEnabled, setFlowEnabled] = useState(false);
+  const [flowHeader, setFlowHeader] = useState('');
+  const [flowWelcome, setFlowWelcome] = useState('');
+  const [flowButtonLabel, setFlowButtonLabel] = useState('Explore Menu');
+  const [flowFooter, setFlowFooter] = useState('');
+  const [menuItems, setMenuItems] = useState<Array<{ id: string; title: string; description: string; reply_text: string }>>([]);
+  const [actionButtons, setActionButtons] = useState<Array<{ id: string; title: string; reply_text: string }>>([]);
 
   // Document Modal State
   const [docModalOpen, setDocModalOpen] = useState(false);
@@ -69,6 +79,15 @@ export const ChatbotView: React.FC = () => {
         setHandoverEnabled(currentCfg.handover_enabled ?? true);
         setHandoverKeywords(currentCfg.handover_keywords || '');
         setHandoverMessage(currentCfg.handover_message || '');
+
+        const flow = currentCfg.interactive_flow || {};
+        setFlowEnabled(Boolean(flow.enabled));
+        setFlowHeader(flow.header_text || '');
+        setFlowWelcome(flow.welcome_text || '');
+        setFlowButtonLabel(flow.menu_button_label || 'Explore Menu');
+        setFlowFooter(flow.footer_text || '');
+        setMenuItems(Array.isArray(flow.menu_items) ? flow.menu_items : []);
+        setActionButtons(Array.isArray(flow.action_buttons) ? flow.action_buttons : []);
       }
 
       setDocs(docsRes?.results || (Array.isArray(docsRes) ? docsRes : []));
@@ -97,6 +116,15 @@ export const ChatbotView: React.FC = () => {
         handover_enabled: handoverEnabled,
         handover_keywords: handoverKeywords,
         handover_message: handoverMessage,
+        interactive_flow: {
+          enabled: flowEnabled,
+          header_text: flowHeader.trim(),
+          welcome_text: flowWelcome.trim(),
+          menu_button_label: flowButtonLabel.trim() || 'Explore Menu',
+          footer_text: flowFooter.trim(),
+          menu_items: menuItems.filter((m) => m.title.trim()),
+          action_buttons: actionButtons.filter((b) => b.title.trim()),
+        },
       };
 
       if (config?.id) {
@@ -331,6 +359,255 @@ export const ChatbotView: React.FC = () => {
               </button>
             </div>
           </form>
+
+          {/* Dynamic Interactive Menu & Button Flow Builder */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div className="flex items-center space-x-2">
+                <ListChecks className="w-4 h-4 text-[#075E54]" />
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                    Interactive Menu & Button Flow
+                  </h2>
+                  <p className="text-[11px] text-slate-500">
+                    Customize the auto-reply menu & buttons sent when customers message "Hi".
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFlowEnabled(true);
+                    setFlowHeader('Sri Lakshmi Sarees');
+                    setFlowWelcome('Vanakkam! Welcome to Sri Lakshmi Sarees. Tap below to explore our latest silk & designer saree collections:');
+                    setFlowButtonLabel('View Collections');
+                    setFlowFooter('Sri Lakshmi Sarees Showroom');
+                    setMenuItems([
+                      { id: 'item_1', title: 'Kanchipuram Silk', description: 'Pure Wedding Silk Sarees', reply_text: 'Pure Kanchipuram Wedding Silk Sarees starting from Rs. 4,500. Available in Bridal Red, Gold & Pastel shades.' },
+                      { id: 'item_2', title: 'Banarasi & Soft Silk', description: 'Lightweight Festive Sarees', reply_text: 'Trendy Banarasi & Soft Silk Sarees starting from Rs. 2,200 with contrast blouse pieces.' },
+                      { id: 'item_3', title: 'Cotton & Daily Wear', description: 'Chettinad & Linen Sarees', reply_text: 'Breathable Pure Cotton & Linen Sarees starting from Rs. 850. Ideal for office and daily wear.' },
+                    ]);
+                    setActionButtons([
+                      { id: 'btn_1', title: 'Get Price Catalog', reply_text: 'Thank you! Our team will send you the latest saree photos & price catalog shortly.' },
+                      { id: 'btn_2', title: 'Call Showroom', reply_text: 'Call or WhatsApp our showroom directly at +91 99444 95366. Open 10 AM - 9 PM.' },
+                    ]);
+                  }}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-[#075E54] bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1.5 rounded-lg border border-emerald-200/60 transition-colors"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span>Load Saree Shop Sample</span>
+                </button>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={flowEnabled}
+                    onChange={(e) => setFlowEnabled(e.target.checked)}
+                    className="w-4 h-4 accent-[#075E54] rounded"
+                  />
+                  <span className="text-xs font-bold text-slate-700">Enable</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Business Header *
+                </label>
+                <input
+                  type="text"
+                  maxLength={60}
+                  value={flowHeader}
+                  onChange={(e) => setFlowHeader(e.target.value)}
+                  placeholder="e.g. Sri Lakshmi Sarees"
+                  className="w-full px-3 py-2 text-xs font-semibold border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54]"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Menu Button Name *
+                </label>
+                <input
+                  type="text"
+                  maxLength={20}
+                  value={flowButtonLabel}
+                  onChange={(e) => setFlowButtonLabel(e.target.value)}
+                  placeholder="e.g. View Collections"
+                  className="w-full px-3 py-2 text-xs font-semibold border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Welcome Message (Sent on "Hi") *
+              </label>
+              <textarea
+                rows={2}
+                value={flowWelcome}
+                onChange={(e) => setFlowWelcome(e.target.value)}
+                placeholder="Welcome to our store! Tap below to explore our products..."
+                className="w-full p-3 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54]"
+              />
+            </div>
+
+            {/* Menu List Options */}
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Menu Options ({menuItems.length}/10)
+                </label>
+                {menuItems.length < 10 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setMenuItems([
+                        ...menuItems,
+                        { id: `item_${Date.now()}`, title: '', description: '', reply_text: '' },
+                      ])
+                    }
+                    className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-[#075E54] text-white text-[11px] font-bold"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Add Option</span>
+                  </button>
+                )}
+              </div>
+
+              {menuItems.length === 0 ? (
+                <p className="text-xs text-slate-400 py-2">
+                  No menu options added yet. Click "+ Add Option" or "Load Saree Shop Sample".
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {menuItems.map((item, idx) => (
+                    <div key={item.id} className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-[#075E54]">Option #{idx + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => setMenuItems(menuItems.filter((_, i) => i !== idx))}
+                          className="text-slate-400 hover:text-rose-600 p-1"
+                          title="Delete Option"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          maxLength={24}
+                          value={item.title}
+                          onChange={(e) => {
+                            const updated = [...menuItems];
+                            updated[idx].title = e.target.value;
+                            setMenuItems(updated);
+                          }}
+                          placeholder="Option Title (max 24 chars)"
+                          className="px-3 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-[#075E54]"
+                        />
+                        <input
+                          type="text"
+                          maxLength={72}
+                          value={item.description}
+                          onChange={(e) => {
+                            const updated = [...menuItems];
+                            updated[idx].description = e.target.value;
+                            setMenuItems(updated);
+                          }}
+                          placeholder="Short Description"
+                          className="px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-[#075E54]"
+                        />
+                      </div>
+                      <textarea
+                        rows={2}
+                        value={item.reply_text}
+                        onChange={(e) => {
+                          const updated = [...menuItems];
+                          updated[idx].reply_text = e.target.value;
+                          setMenuItems(updated);
+                        }}
+                        placeholder="Reply message sent when customer taps this option..."
+                        className="w-full p-2.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-[#075E54]"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Follow-up Action Buttons */}
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  Follow-up Action Buttons ({actionButtons.length}/2 + Main Menu)
+                </label>
+                {actionButtons.length < 2 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActionButtons([
+                        ...actionButtons,
+                        { id: `btn_${Date.now()}`, title: '', reply_text: '' },
+                      ])
+                    }
+                    className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-slate-800 text-white text-[11px] font-bold"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Add Button</span>
+                  </button>
+                )}
+              </div>
+
+              {actionButtons.map((btn, idx) => (
+                <div key={btn.id} className="p-3 rounded-xl bg-emerald-50/50 border border-emerald-200/80 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <input
+                      type="text"
+                      maxLength={20}
+                      value={btn.title}
+                      onChange={(e) => {
+                        const updated = [...actionButtons];
+                        updated[idx].title = e.target.value;
+                        setActionButtons(updated);
+                      }}
+                      placeholder="Button Label (max 20 chars, e.g. Call Showroom)"
+                      className="flex-1 px-3 py-1.5 text-xs font-bold bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-[#075E54]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setActionButtons(actionButtons.filter((_, i) => i !== idx))}
+                      className="text-slate-400 hover:text-rose-600 p-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <textarea
+                    rows={2}
+                    value={btn.reply_text}
+                    onChange={(e) => {
+                      const updated = [...actionButtons];
+                      updated[idx].reply_text = e.target.value;
+                      setActionButtons(updated);
+                    }}
+                    placeholder="Reply message sent when customer taps this button (e.g. Call +91...)..."
+                    className="w-full p-2.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-[#075E54]"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={(e) => handleSaveConfig(e as any)}
+              disabled={saving}
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#075E54] to-[#25D366] text-white font-bold text-xs shadow-sm hover:opacity-95 transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
+            >
+              <Save className="w-4 h-4" />
+              <span>{saving ? 'Saving Flow...' : 'Save Interactive Button Flow'}</span>
+            </button>
+          </div>
 
           {/* Knowledge Base Documents List */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">

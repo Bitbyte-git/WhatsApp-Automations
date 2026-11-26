@@ -256,7 +256,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
             if not client:
                 client, _ = Client.objects.get_or_create(
                     name='BitByte Technologies',
-                    defaults={'slug': 'bitbyte-technologies', 'status': 'ACTIVE', 'phone_number': '+919363938143'}
+                    defaults={'slug': 'bitbyte-technologies', 'status': 'ACTIVE', 'phone_number': '+919944495366'}
                 )
 
             data = request.data
@@ -338,7 +338,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
                     defaults={
                         'client': client,
                         'business_name': f'{client.name} Official Gateway',
-                        'phone_number': '+919944495366' if meta_client.is_configured else '+919363938143',
+                        'phone_number': '+919944495366',
                         'waba_id': waba_id_val,
                         'access_token': meta_client.access_token,
                         'connection_status': 'CONNECTED',

