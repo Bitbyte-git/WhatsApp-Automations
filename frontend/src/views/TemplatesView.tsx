@@ -244,7 +244,7 @@ export const TemplatesView: React.FC = () => {
                 <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between text-[11px] text-gray-400">
                   <span>WABA: {tmpl.whatsapp_account_name || 'Global'}</span>
                   <div className="flex items-center space-x-3">
-                    {tmpl.category === 'AUTHENTICATION' && tmpl.status === 'APPROVED' && (
+                    {(tmpl.category === 'AUTHENTICATION' || tmpl.name === 'bitbyte_utility_update') && tmpl.status === 'APPROVED' && (
                       <button
                         type="button"
                         onClick={(e) => {

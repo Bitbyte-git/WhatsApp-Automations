@@ -107,12 +107,12 @@ class MessageTemplateViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def send_otp(self, request, pk=None):
         """
-        Dispatches a one-time verification code using an approved AUTHENTICATION template.
+        Dispatches a one-time verification code using an approved AUTHENTICATION or UTILITY template.
         """
         import random
         template = self.get_object()
-        if template.category != 'AUTHENTICATION':
-            return Response({'error': 'Only AUTHENTICATION templates can send OTPs.'}, status=status.HTTP_400_BAD_REQUEST)
+        if template.category not in ('AUTHENTICATION', 'UTILITY'):
+            return Response({'error': 'Only AUTHENTICATION or UTILITY templates can send OTPs.'}, status=status.HTTP_400_BAD_REQUEST)
         if template.status != 'APPROVED':
             return Response({'error': f"Template '{template.name}' is currently {template.status}. Wait for Meta approval first."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -136,12 +136,21 @@ class MessageTemplateViewSet(viewsets.ModelViewSet):
             access_token=account.access_token,
             waba_id=account.waba_id
         )
-        res = meta_client.send_authentication_otp_template(
-            to_phone_number=digits,
-            otp_code=otp_code,
-            template_name=template.name,
-            language_code=template.language or 'en'
-        )
+        if template.category == 'UTILITY':
+            otp_body = f"Your verification code is {otp_code}. Valid for 10 minutes. Do not share this code with anyone."
+            res = meta_client.send_template_message(
+                to_phone_number=digits,
+                template_name=template.name,
+                language_code=template.language or 'en',
+                components=[{'type': 'body', 'parameters': [{'type': 'text', 'text': otp_body}]}]
+            )
+        else:
+            res = meta_client.send_authentication_otp_template(
+                to_phone_number=digits,
+                otp_code=otp_code,
+                template_name=template.name,
+                language_code=template.language or 'en'
+            )
         if not res.get('success'):
             return Response({'error': res.get('error', 'Failed to send OTP via Meta.')}, status=status.HTTP_400_BAD_REQUEST)
 
