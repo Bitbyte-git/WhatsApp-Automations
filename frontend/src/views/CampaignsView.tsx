@@ -73,6 +73,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageUploadError, setImageUploadError] = useState('');
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string; url: string } | null>(null);
+  const [deletingImage, setDeletingImage] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const excelInputRef = useRef<HTMLInputElement>(null);
   const [excelSummary, setExcelSummary] = useState<string>('');
@@ -268,6 +270,20 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
         if (res.wallet_balance !== undefined) {
           setWalletBalance(res.wallet_balance);
         }
+        // Delete sent image from active composer & Cloudinary so next message starts at 0/3 fresh
+        const sentImgId = selectedImageId;
+        setCampaignTitle('');
+        setHeaderText('');
+        setMessage('');
+        setButtons([]);
+        setNewButtonText('');
+        setSelectedImageId(null);
+        setTestPhoneNumber('');
+        setCustomAudienceText('');
+        setExcelSummary('');
+        if (sentImgId) {
+          api.deleteMarketingImage(sentImgId).then(() => loadImages()).catch(() => loadImages());
+        }
         loadData();
       } else {
         setAlertError(res?.message || 'Failed to dispatch WhatsApp broadcast.');
@@ -305,15 +321,19 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
     }
   };
 
-  const handleDeleteImage = async (id: number, name: string) => {
-    if (!window.confirm(`Delete image "${name}"? This cannot be undone.`)) return;
+  const confirmDeleteImage = async () => {
+    if (!deleteTarget) return;
+    setDeletingImage(true);
     try {
-      await api.deleteMarketingImage(id);
-      if (selectedImageId === id) setSelectedImageId(null);
+      await api.deleteMarketingImage(deleteTarget.id);
+      if (selectedImageId === deleteTarget.id) setSelectedImageId(null);
       await loadImages();
-      setAlertSuccess(`Image "${name}" deleted.`);
+      setAlertSuccess(`Image "${deleteTarget.name}" deleted.`);
+      setDeleteTarget(null);
     } catch (err: any) {
       setAlertError(err.message || 'Delete failed.');
+    } finally {
+      setDeletingImage(false);
     }
   };
 
@@ -593,8 +613,11 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
                       <button
                         type="button"
                         title="Delete"
-                        className="p-1.5 bg-rose-500 rounded-lg"
-                        onClick={(e) => { e.stopPropagation(); handleDeleteImage(img.id, img.name); }}
+                        className="p-1.5 bg-rose-500 hover:bg-rose-600 rounded-lg transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget({ id: img.id, name: img.name, url: img.webp_url || img.cloudinary_url });
+                        }}
                       >
                         <Trash2 className="w-3.5 h-3.5 text-white" />
                       </button>
@@ -625,15 +648,85 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
           {/* Image Preview Modal */}
           {previewImageUrl && (
             <div
-              className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6"
+              className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-6"
               onClick={() => setPreviewImageUrl(null)}
             >
               <div className="relative max-w-lg w-full" onClick={e => e.stopPropagation()}>
                 <img src={previewImageUrl} alt="Preview" className="w-full rounded-2xl shadow-2xl" />
                 <button
-                  className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center font-bold text-slate-700 shadow"
+                  type="button"
+                  className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center text-slate-700 shadow hover:bg-slate-100"
                   onClick={() => setPreviewImageUrl(null)}
-                >✕</button>
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Premium Delete Confirmation Modal */}
+          {deleteTarget && (
+            <div
+              className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+              onClick={() => !deletingImage && setDeleteTarget(null)}
+            >
+              <div
+                className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-sm w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="w-11 h-11 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600">
+                    <Trash2 className="w-5 h-5" />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={deletingImage}
+                    onClick={() => setDeleteTarget(null)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-1">
+                  <h3 className="text-base font-black text-slate-900">Delete Marketing Image?</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    Are you sure you want to delete <span className="font-bold text-slate-700">"{deleteTarget.name}"</span>? This will permanently remove it from Cloudinary.
+                  </p>
+                </div>
+
+                <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                  <img src={deleteTarget.url} alt={deleteTarget.name} className="w-full h-32 object-cover" />
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    disabled={deletingImage}
+                    onClick={() => setDeleteTarget(null)}
+                    className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deletingImage}
+                    onClick={confirmDeleteImage}
+                    className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    {deletingImage ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Deleting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Image</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           )}
