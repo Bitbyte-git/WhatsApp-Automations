@@ -26,6 +26,7 @@ import * as XLSX from 'xlsx';
 import { api } from '../services/api';
 import { Campaign, Contact } from '../types';
 import { Badge } from '../components/Badge';
+import { Modal } from '../components/Modal';
 import { useAuth } from '../context/AuthContext';
 import { TableSkeleton } from '../components/Skeleton';
 
@@ -41,6 +42,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [walletBalance, setWalletBalance] = useState<string>('0.00');
+  const [successPopup, setSuccessPopup] = useState<{ title: string; message: string; category: string } | null>(null);
 
   // Real Form State (Zero hardcoded data)
   const [campaignTitle, setCampaignTitle] = useState('');
@@ -243,7 +245,9 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
         }
       }
 
-      const selectedImg = marketingImages.find((img: any) => img.id === selectedImageId);
+      const selectedImg =
+        marketingImages.find((img: any) => img.id === selectedImageId) ||
+        (serviceType === 'MARKETING' && marketingImages.length === 1 ? marketingImages[0] : undefined);
 
       const payload = {
         recipient_type: recipientType,
@@ -262,16 +266,26 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
 
       if (res?.success) {
         const count = res.sent_count || 1;
-        setAlertSuccess(
+        const successMsg =
           deliveryMode === 'TEST' && count === 1
             ? `Message delivered to +91 ${testPhoneNumber}!`
-            : `Broadcast successfully delivered to ${count} recipient(s)!`
-        );
+            : `Broadcast successfully delivered to ${count} recipient(s)!`;
+        setAlertSuccess(successMsg);
+        setSuccessPopup({
+          title:
+            serviceType === 'UTILITY'
+              ? 'Utility Update Sent!'
+              : serviceType === 'SERVICE'
+              ? 'Service Reply Sent!'
+              : 'Marketing Message Sent!',
+          message: successMsg,
+          category: serviceType,
+        });
         if (res.wallet_balance !== undefined) {
           setWalletBalance(res.wallet_balance);
         }
         // Delete sent image from active composer & Cloudinary so next message starts at 0/3 fresh
-        const sentImgId = selectedImageId;
+        const sentImgId = selectedImg?.id;
         setCampaignTitle('');
         setHeaderText('');
         setMessage('');
@@ -282,7 +296,12 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
         setCustomAudienceText('');
         setExcelSummary('');
         if (sentImgId) {
-          api.deleteMarketingImage(sentImgId).then(() => loadImages()).catch(() => loadImages());
+          // Hide from active composer immediately so next message starts at 0/3 fresh,
+          // but delay Cloudinary deletion by 30s so Meta's async media downloader doesn't hit 404!
+          setMarketingImages((prev) => prev.filter((img: any) => img.id !== sentImgId));
+          setTimeout(() => {
+            api.deleteMarketingImage(sentImgId).catch(() => {});
+          }, 30000);
         }
         loadData();
       } else {
@@ -299,7 +318,11 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
   const loadImages = async () => {
     try {
       const res = await api.getMarketingImages();
-      setMarketingImages(res?.results || []);
+      const imgs = res?.results || [];
+      setMarketingImages(imgs);
+      if (imgs.length === 1 && !selectedImageId) {
+        setSelectedImageId(imgs[0].id);
+      }
     } catch { /* ignore */ }
   };
 
@@ -310,9 +333,10 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
     setImageUploadError('');
     try {
       const res = await api.uploadMarketingImage(file, file.name.replace(/\.[^.]+$/, ''));
+      const newId = res?.image?.id || res?.id || null;
       await loadImages();
-      setSelectedImageId(res?.image?.id || null);
-      setAlertSuccess(`Image "${res?.image?.name}" uploaded as WebP successfully!`);
+      if (newId) setSelectedImageId(newId);
+      setAlertSuccess(`Image "${res?.image?.name || file.name}" uploaded as WebP successfully!`);
     } catch (err: any) {
       setImageUploadError(err.message || 'Upload failed. Check Cloudinary config.');
     } finally {
@@ -1090,6 +1114,37 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
           </div>
         )}
       </div>
+
+      {/* Success Popup Modal */}
+      <Modal
+        isOpen={!!successPopup}
+        onClose={() => setSuccessPopup(null)}
+        title={successPopup?.title || 'Message Sent'}
+      >
+        <div className="text-center py-4 space-y-4">
+          <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+            <CheckCircle className="w-9 h-9" />
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-base font-extrabold text-slate-900">
+              {successPopup?.title}
+            </p>
+            <p className="text-sm font-medium text-slate-600">
+              {successPopup?.message}
+            </p>
+            <p className="text-[11px] text-slate-400">
+              Dispatched via Meta WhatsApp Cloud API ({successPopup?.category})
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuccessPopup(null)}
+            className="w-full py-2.5 bg-[#075E54] hover:bg-[#064E3B] text-white font-bold text-sm rounded-xl transition-colors"
+          >
+            OK, Got It
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 };

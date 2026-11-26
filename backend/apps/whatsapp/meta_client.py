@@ -299,6 +299,82 @@ class MetaCloudAPIClient:
         except requests.exceptions.RequestException as e:
             return {'success': False, 'error': str(e)}
 
+    def create_template(self, name, category, language, body_text, header_text='', footer_text='', buttons=None):
+        """
+        Submits a new WhatsApp message template directly to Meta Graph API for review & approval.
+        """
+        if not self.waba_id or not self.access_token:
+            return {'success': False, 'error': 'WhatsApp integration is not configured. Missing WABA ID or Access Token.'}
+
+        import re
+        components = []
+
+        if header_text and header_text.strip():
+            header_comp = {
+                'type': 'HEADER',
+                'format': 'TEXT',
+                'text': header_text.strip()[:60],
+            }
+            if re.search(r'\{\{\d+\}\}', header_text):
+                header_comp['example'] = {'header_text': ['Sample Header']}
+            components.append(header_comp)
+
+        body_comp = {
+            'type': 'BODY',
+            'text': body_text.strip()[:1024],
+        }
+        body_vars = sorted(set(re.findall(r'\{\{(\d+)\}\}', body_text or '')), key=lambda x: int(x))
+        if body_vars:
+            body_comp['example'] = {
+                'body_text': [[f'Sample_{v}' for v in body_vars]]
+            }
+        components.append(body_comp)
+
+        if footer_text and footer_text.strip():
+            components.append({
+                'type': 'FOOTER',
+                'text': footer_text.strip()[:60],
+            })
+
+        if buttons:
+            meta_buttons = []
+            for btn in buttons[:3]:
+                btn_text = (btn.get('text') if isinstance(btn, dict) else str(btn)).strip()
+                if btn_text:
+                    meta_buttons.append({
+                        'type': 'QUICK_REPLY',
+                        'text': btn_text[:25],
+                    })
+            if meta_buttons:
+                components.append({
+                    'type': 'BUTTONS',
+                    'buttons': meta_buttons,
+                })
+
+        url = f"{self.base_url}/{self.waba_id}/message_templates"
+        payload = {
+            'name': name.strip().lower(),
+            'category': category.upper(),
+            'language': language.strip(),
+            'components': components,
+        }
+        try:
+            response = requests.post(url, json=payload, headers=self._get_headers(), timeout=15)
+            data = response.json()
+            if response.status_code in [200, 201]:
+                return {
+                    'success': True,
+                    'meta_template_id': str(data.get('id', '')),
+                    'status': str(data.get('status', 'PENDING')).upper(),
+                    'category': str(data.get('category', category)).upper(),
+                    'data': data,
+                }
+            err_obj = data.get('error', {})
+            error_msg = err_obj.get('error_user_msg') or err_obj.get('message') or 'Failed to submit template to Meta'
+            return {'success': False, 'error': error_msg, 'data': data}
+        except requests.exceptions.RequestException as e:
+            return {'success': False, 'error': str(e)}
+
     def check_phone_number_status(self):
         """
         Inspects live phone number registration status, quality rating, and verified name from Meta.

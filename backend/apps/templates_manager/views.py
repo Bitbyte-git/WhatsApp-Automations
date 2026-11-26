@@ -42,10 +42,63 @@ class MessageTemplateViewSet(viewsets.ModelViewSet):
 
         return qs.select_related('client', 'whatsapp_account')
 
-    def perform_create(self, serializer):
-        user = self.request.user
-        client = user.client if not user.is_superadmin else serializer.validated_data.get('client')
-        serializer.save(client=client)
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated = serializer.validated_data
+
+        user = request.user
+        account = validated.get('whatsapp_account')
+        if not account and user.client:
+            account = WhatsAppAccount.objects.filter(client=user.client, connection_status='CONNECTED').first() or WhatsAppAccount.objects.filter(client=user.client).first()
+        if not account and user.is_superadmin:
+            client_obj = validated.get('client')
+            if client_obj:
+                account = WhatsAppAccount.objects.filter(client=client_obj, connection_status='CONNECTED').first() or WhatsAppAccount.objects.filter(client=client_obj).first()
+            else:
+                account = WhatsAppAccount.objects.filter(connection_status='CONNECTED').exclude(waba_id__startswith='infisq').first() or WhatsAppAccount.objects.filter(connection_status='CONNECTED').first()
+
+        if not account:
+            return Response(
+                {'error': 'No connected WhatsApp Account found. Please connect a WhatsApp Gateway first.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        meta_client = MetaCloudAPIClient(
+            phone_number_id=account.phone_number_id,
+            access_token=account.access_token,
+            waba_id=account.waba_id
+        )
+        if not meta_client.is_configured:
+            return Response(
+                {'error': 'WhatsApp integration is not configured. Missing Meta credentials or WABA ID.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        meta_res = meta_client.create_template(
+            name=validated['name'],
+            category=validated['category'],
+            language=validated.get('language', 'en_US'),
+            body_text=validated['body_text'],
+            header_text=validated.get('header_text', ''),
+            footer_text=validated.get('footer_text', ''),
+            buttons=validated.get('buttons', []),
+        )
+        if not meta_res.get('success'):
+            return Response(
+                {'error': meta_res.get('error', 'Meta rejected template submission.')},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        instance = serializer.save(
+            client=account.client,
+            whatsapp_account=account,
+            meta_template_id=meta_res.get('meta_template_id', ''),
+            status=meta_res.get('status', 'PENDING'),
+            category=meta_res.get('category', validated['category']),
+        )
+        out_serializer = self.get_serializer(instance)
+        return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['post'])
     def sync_from_meta(self, request):

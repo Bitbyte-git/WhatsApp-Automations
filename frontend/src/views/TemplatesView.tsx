@@ -96,22 +96,27 @@ export const TemplatesView: React.FC = () => {
         name: name.toLowerCase().replace(/\s+/g, '_'),
         category,
         language,
-        header_type: headerType,
+        header_type: headerText.trim() ? 'TEXT' : headerType,
         header_text: headerText,
         body_text: bodyText,
         footer_text: footerText,
         buttons,
         whatsapp_account: accountId ? parseInt(accountId) : accounts[0]?.id,
-        status: 'PENDING',
       };
 
       if (user?.role === 'SUPERADMIN' && activeTenantId) {
         payload.client = parseInt(activeTenantId);
       }
 
-      await api.createTemplate(payload);
+      const created = await api.createTemplate(payload);
       setModalOpen(false);
+      setName('');
+      setHeaderText('');
+      setBodyText('');
+      setFooterText('');
+      setButtonText('');
       loadData();
+      alert(`Template "${created?.name || payload.name}" submitted to Meta! Status: ${created?.status || 'PENDING'}. Click "Sync from Meta" in 1 minute to refresh approval status.`);
     } catch (err: any) {
       setFormError(err.message || 'Failed to create message template.');
     } finally {
