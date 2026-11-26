@@ -30,7 +30,23 @@ export const ChatbotView: React.FC = () => {
   const [flowWelcome, setFlowWelcome] = useState('');
   const [flowButtonLabel, setFlowButtonLabel] = useState('Explore Menu');
   const [flowFooter, setFlowFooter] = useState('');
-  const [menuItems, setMenuItems] = useState<Array<{ id: string; title: string; description: string; reply_text: string }>>([]);
+  interface SubOption {
+    id: string;
+    title: string;
+    description: string;
+    reply_text: string;
+  }
+
+  interface MenuOption {
+    id: string;
+    title: string;
+    description: string;
+    reply_text: string;
+    sub_button_label?: string;
+    sub_items?: SubOption[];
+  }
+
+  const [menuItems, setMenuItems] = useState<MenuOption[]>([]);
   const [actionButtons, setActionButtons] = useState<Array<{ id: string; title: string; reply_text: string }>>([]);
 
   const loadData = async () => {
@@ -100,40 +116,54 @@ export const ChatbotView: React.FC = () => {
 
   const handleLoadSample = () => {
     setFlowEnabled(true);
-    setFlowHeader('Sri Lakshmi Sarees');
-    setFlowWelcome('Vanakkam! Welcome to Sri Lakshmi Sarees. Tap below to explore our latest silk & designer collections:');
-    setFlowButtonLabel('View Collections');
-    setFlowFooter('Sri Lakshmi Sarees Showroom');
+    setFlowHeader('BitByte Mobile World');
+    setFlowWelcome('Welcome to BitByte Mobile World! Tap below to explore our latest smartphones, used mobiles & accessories:');
+    setFlowButtonLabel('Explore Mobiles');
+    setFlowFooter('Open 10 AM - 9:30 PM | All Days');
     setMenuItems([
       {
-        id: 'item_1',
-        title: 'Kanchipuram Silk',
-        description: 'Pure Wedding Silk Sarees',
-        reply_text: 'Pure Kanchipuram Wedding Silk Sarees starting from Rs. 4,500. Available in Bridal Red, Gold & Pastel shades.',
+        id: 'item_new',
+        title: 'New Smartphones',
+        description: 'Vivo, Oppo, iPhone & Moto',
+        reply_text: 'Select your favorite brand below to check latest models & rates:',
+        sub_button_label: 'Select Brand',
+        sub_items: [
+          { id: 'sub_vivo', title: 'Vivo 5G', description: 'V30, T3 & Y-Series', reply_text: 'Vivo Latest Rates:\n• Vivo Y200e 5G: Rs. 19,999\n• Vivo V30 5G: Rs. 33,999\n0% EMI & Exchange Bonus Available!' },
+          { id: 'sub_oppo', title: 'Oppo 5G', description: 'Reno & F-Series', reply_text: 'Oppo Latest Rates:\n• Oppo F25 Pro 5G: Rs. 23,999\n• Oppo Reno 11 5G: Rs. 29,999' },
+          { id: 'sub_iphone', title: 'Apple iPhone', description: 'iPhone 13, 14, 15 & 16', reply_text: 'Apple iPhone Rates:\n• iPhone 13 (128GB): Rs. 48,999\n• iPhone 15 (128GB): Rs. 68,999\n• iPhone 16 (128GB): Rs. 79,900' },
+          { id: 'sub_moto', title: 'Motorola 5G', description: 'Edge & G-Series', reply_text: 'Motorola Latest Rates:\n• Moto G64 5G: Rs. 14,999\n• Moto Edge 50 Fusion: Rs. 22,999' },
+        ],
       },
       {
-        id: 'item_2',
-        title: 'Banarasi & Soft Silk',
-        description: 'Lightweight Festive Sarees',
-        reply_text: 'Trendy Banarasi & Soft Silk Sarees starting from Rs. 2,200 with contrast blouse pieces.',
+        id: 'item_used',
+        title: 'Used Mobiles',
+        description: 'Certified Phones with Warranty',
+        reply_text: 'Choose your budget range below to see available Certified Used Mobiles:',
+        sub_button_label: 'Select Budget',
+        sub_items: [
+          { id: 'sub_4k', title: 'Rs. 4,000 - 10,000', description: 'Budget 4G & 5G Used Phones', reply_text: 'Used Mobiles (Rs. 4,000 - 10,000):\n• Redmi Note 11: Rs. 6,999\n• Realme Narzo 50: Rs. 7,499\n• Vivo Y21: Rs. 6,499\n(With 6-Month Shop Warranty!)' },
+          { id: 'sub_11k', title: 'Rs. 11,000 Above', description: 'Premium Used iPhones & 5G', reply_text: 'Premium Used Mobiles (Rs. 11,000+):\n• OnePlus Nord CE 3: Rs. 15,500\n• Samsung S22 5G: Rs. 26,999\n• iPhone 13 (Mint): Rs. 34,500\n(With 6-Month Shop Warranty!)' },
+        ],
       },
       {
-        id: 'item_3',
-        title: 'Cotton & Daily Wear',
-        description: 'Chettinad & Linen Sarees',
-        reply_text: 'Breathable Pure Cotton & Linen Sarees starting from Rs. 850. Ideal for office and daily wear.',
+        id: 'item_acc',
+        title: 'Mobile Accessories',
+        description: 'Chargers, Earbuds & Watches',
+        reply_text: 'Original Fast Chargers, TWS Earbuds, Smartwatches & Cases starting from Rs. 299!',
+        sub_button_label: 'Select Option',
+        sub_items: [],
       },
     ]);
     setActionButtons([
       {
         id: 'btn_1',
-        title: 'Get Price Catalog',
-        reply_text: 'Thank you! Our team will send you the latest saree photos & price catalog shortly.',
+        title: 'Check Price & Stock',
+        reply_text: 'Thank you! Our mobile expert will confirm stock availability shortly. WhatsApp: +91 99444 95366.',
       },
       {
         id: 'btn_2',
         title: 'Call Showroom',
-        reply_text: 'Call or WhatsApp our showroom directly at +91 99444 95366. Open 10 AM - 9 PM.',
+        reply_text: 'Call or WhatsApp our Mobile Showroom directly at +91 99444 95366. Open 10 AM - 9:30 PM.',
       },
     ]);
   };
@@ -347,9 +377,118 @@ export const ChatbotView: React.FC = () => {
                         updated[idx].reply_text = e.target.value;
                         setMenuItems(updated);
                       }}
-                      placeholder="Reply message when customer selects this option..."
+                      placeholder={
+                        (item.sub_items?.length || 0) > 0
+                          ? 'Intro text shown above sub-menu (e.g. Select a brand below:)'
+                          : 'Reply message when customer selects this option...'
+                      }
                       className="w-full p-2.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-[#075E54]"
                     />
+
+                    {/* Per-Option Sub-Menu Builder */}
+                    <div className="pt-2 border-t border-slate-200/80 space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                          Sub-Options under "{item.title || `Option ${idx + 1}`}" ({item.sub_items?.length || 0}/9)
+                        </span>
+                        {(item.sub_items?.length || 0) < 9 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = [...menuItems];
+                              const currSubs = updated[idx].sub_items || [];
+                              updated[idx].sub_items = [
+                                ...currSubs,
+                                { id: `sub_${Date.now()}`, title: '', description: '', reply_text: '' },
+                              ];
+                              setMenuItems(updated);
+                            }}
+                            className="inline-flex items-center space-x-1 px-2 py-1 rounded-md bg-emerald-100 hover:bg-emerald-200 text-[#075E54] text-[10px] font-bold transition-colors"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>Add Sub-Option</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {(item.sub_items?.length || 0) > 0 && (
+                        <div className="space-y-2 pl-3 border-l-2 border-emerald-400">
+                          <input
+                            type="text"
+                            maxLength={20}
+                            value={item.sub_button_label || ''}
+                            onChange={(e) => {
+                              const updated = [...menuItems];
+                              updated[idx].sub_button_label = e.target.value;
+                              setMenuItems(updated);
+                            }}
+                            placeholder="Sub-Menu Button Label (e.g. Select Brand)"
+                            className="w-full px-2.5 py-1.5 text-[11px] font-bold bg-white border border-emerald-200 rounded-lg focus:outline-none focus:border-[#075E54]"
+                          />
+                          {(item.sub_items || []).map((sub, sIdx) => (
+                            <div key={sub.id} className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-emerald-700">Sub-Option #{sIdx + 1}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = [...menuItems];
+                                    updated[idx].sub_items = (updated[idx].sub_items || []).filter((_, j) => j !== sIdx);
+                                    setMenuItems(updated);
+                                  }}
+                                  className="text-slate-400 hover:text-rose-600 p-0.5"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                <input
+                                  type="text"
+                                  maxLength={24}
+                                  value={sub.title}
+                                  onChange={(e) => {
+                                    const updated = [...menuItems];
+                                    if (updated[idx].sub_items?.[sIdx]) {
+                                      updated[idx].sub_items![sIdx].title = e.target.value;
+                                    }
+                                    setMenuItems(updated);
+                                  }}
+                                  placeholder="Sub-Title (e.g. iPhone / Rs. 4000+)"
+                                  className="px-2.5 py-1 text-[11px] font-semibold border border-slate-200 rounded-md focus:outline-none focus:border-[#075E54]"
+                                />
+                                <input
+                                  type="text"
+                                  maxLength={72}
+                                  value={sub.description}
+                                  onChange={(e) => {
+                                    const updated = [...menuItems];
+                                    if (updated[idx].sub_items?.[sIdx]) {
+                                      updated[idx].sub_items![sIdx].description = e.target.value;
+                                    }
+                                    setMenuItems(updated);
+                                  }}
+                                  placeholder="Short Description"
+                                  className="px-2.5 py-1 text-[11px] border border-slate-200 rounded-md focus:outline-none focus:border-[#075E54]"
+                                />
+                              </div>
+                              <textarea
+                                rows={2}
+                                value={sub.reply_text}
+                                onChange={(e) => {
+                                  const updated = [...menuItems];
+                                  if (updated[idx].sub_items?.[sIdx]) {
+                                    updated[idx].sub_items![sIdx].reply_text = e.target.value;
+                                  }
+                                  setMenuItems(updated);
+                                }}
+                                placeholder="Rate / Details shown when customer taps this sub-option..."
+                                className="w-full p-2 text-[11px] border border-slate-200 rounded-md focus:outline-none focus:border-[#075E54]"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

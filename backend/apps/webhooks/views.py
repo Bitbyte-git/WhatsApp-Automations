@@ -2,6 +2,7 @@ import hmac
 import hashlib
 import json
 import logging
+import threading
 from django.conf import settings
 from django.http import HttpResponse
 from django.utils import timezone
@@ -15,6 +16,82 @@ from apps.whatsapp.meta_client import MetaCloudAPIClient
 from apps.whatsapp.serializers import WebhookEventSerializer
 
 logger = logging.getLogger(__name__)
+
+_INACTIVITY_TIMERS = {}
+_TIMER_LOCK = threading.Lock()
+
+
+def _cancel_inactivity_timer(conv_id):
+    with _TIMER_LOCK:
+        old = _INACTIVITY_TIMERS.pop(conv_id, None)
+        if old:
+            old.cancel()
+
+
+def _send_inactivity_notice(conv_id, client_id, account_id, contact_id, to_phone, phone_number_id, access_token, waba_id, trigger_ts):
+    try:
+        conv = Conversation.objects.filter(id=conv_id).first()
+        if not conv:
+            return
+        # Skip if customer sent a newer message after this timer was scheduled
+        if conv.last_message_at and conv.last_message_at.timestamp() > trigger_ts + 2:
+            return
+
+        if phone_number_id and str(phone_number_id).isdigit():
+            mc = MetaCloudAPIClient(phone_number_id=phone_number_id, access_token=access_token, waba_id=waba_id)
+        else:
+            mc = MetaCloudAPIClient()
+
+        if not mc.is_configured:
+            return
+
+        notice_text = (
+            "It seems you've been inactive. Please clear this chat for safety.\n\n"
+            'To continue, please type "Hi" to access the main menu.'
+        )
+        res = mc.send_text_message(to_phone_number=to_phone, text_content=notice_text)
+        if res and res.get('success'):
+            now = timezone.now()
+            Message.objects.create(
+                conversation_id=conv_id,
+                client_id=client_id,
+                whatsapp_account_id=account_id,
+                contact_id=contact_id,
+                wamid=res.get('wamid') or f"IDLE-{int(now.timestamp())}",
+                direction='OUTBOUND',
+                message_type='TEXT',
+                content=notice_text,
+                status='SENT',
+                sent_at=now
+            )
+    except Exception as e:
+        logger.warning(f"Inactivity timer notice failed for conv {conv_id}: {e}")
+    finally:
+        with _TIMER_LOCK:
+            _INACTIVITY_TIMERS.pop(conv_id, None)
+
+
+def _schedule_inactivity_timer(conv, client, account, contact, to_phone, meta_client, trigger_ts, delay_seconds=60.0):
+    _cancel_inactivity_timer(conv.id)
+    t = threading.Timer(
+        delay_seconds,
+        _send_inactivity_notice,
+        args=(
+            conv.id,
+            client.id,
+            account.id,
+            contact.id,
+            to_phone,
+            meta_client.phone_number_id,
+            meta_client.access_token,
+            meta_client.waba_id,
+            trigger_ts,
+        ),
+    )
+    t.daemon = True
+    with _TIMER_LOCK:
+        _INACTIVITY_TIMERS[conv.id] = t
+    t.start()
 
 class MetaWhatsAppWebhookView(views.APIView):
     """
@@ -204,6 +281,7 @@ class MetaWhatsAppWebhookView(views.APIView):
                     conv.last_message_at = now
                     conv.last_message_preview = content[:200]
                     conv.save(update_fields=['unread_count', 'last_message_at', 'last_message_preview'])
+                    _cancel_inactivity_timer(conv.id)
 
                     WebhookEvent.objects.create(
                         event_id=event_id,
@@ -240,6 +318,15 @@ class MetaWhatsAppWebhookView(views.APIView):
                             # 1. Interactive Menu Flow (Configured by Admin/Client in Dashboard)
                             if flow_enabled and menu_items:
                                 matched_item = next((m for m in menu_items if str(m.get('id')) == interactive_id), None)
+                                matched_sub = None
+                                if not matched_item:
+                                    for m in menu_items:
+                                        for sub in (m.get('sub_items') or []):
+                                            if str(sub.get('id')) == interactive_id:
+                                                matched_sub = (m, sub)
+                                                break
+                                        if matched_sub:
+                                            break
                                 matched_btn = next((b for b in action_buttons if str(b.get('id')) == interactive_id), None)
 
                                 if cleaned_content in ['hi', 'hello', 'hey', 'start', 'menu', 'main menu'] or interactive_id == 'btn_main_menu':
@@ -266,7 +353,45 @@ class MetaWhatsAppWebhookView(views.APIView):
                                         footer_text=footer_txt
                                     )
                                 elif matched_item:
-                                    bot_sent_text = str(matched_item.get('reply_text') or matched_item.get('title') or '')
+                                    sub_items = [s for s in (matched_item.get('sub_items') or []) if s.get('title')]
+                                    if sub_items:
+                                        sub_rows = [
+                                            {
+                                                'id': str(s.get('id') or f'sub_{i+1}'),
+                                                'title': str(s.get('title') or f'Item {i+1}')[:24],
+                                                'description': str(s.get('description') or '')[:72]
+                                            }
+                                            for i, s in enumerate(sub_items[:9])
+                                        ]
+                                        sub_rows.append({'id': 'btn_main_menu', 'title': 'Main Menu', 'description': 'Go back to main categories'})
+                                        sub_body = str(matched_item.get('reply_text') or f"Please select an option under {matched_item.get('title')}:")
+                                        sub_btn_label = str(matched_item.get('sub_button_label') or 'Select Option')[:20]
+                                        bot_sent_text = sub_body
+                                        bot_res = meta_client.send_interactive_list(
+                                            to_phone_number=from_phone,
+                                            header_text=str(matched_item.get('title') or client.name)[:60],
+                                            body_text=sub_body,
+                                            button_label=sub_btn_label,
+                                            sections=[{'title': str(matched_item.get('title') or 'Options')[:24], 'rows': sub_rows}],
+                                            footer_text=str(flow.get('footer_text') or client.name)[:60]
+                                        )
+                                    else:
+                                        bot_sent_text = str(matched_item.get('reply_text') or matched_item.get('title') or '')
+                                        follow_btns = [
+                                            {'id': str(b.get('id')), 'title': str(b.get('title'))[:20]}
+                                            for b in action_buttons[:2] if b.get('title')
+                                        ]
+                                        follow_btns.append({'id': 'btn_main_menu', 'title': 'Main Menu'})
+                                        bot_res = meta_client.send_interactive_buttons(
+                                            to_phone_number=from_phone,
+                                            header_text=str(matched_item.get('title') or client.name)[:60],
+                                            body_text=bot_sent_text,
+                                            buttons=follow_btns[:3],
+                                            footer_text=str(flow.get('footer_text') or client.name)[:60]
+                                        )
+                                elif matched_sub:
+                                    parent_item, sub_item = matched_sub
+                                    bot_sent_text = str(sub_item.get('reply_text') or sub_item.get('title') or '')
                                     follow_btns = [
                                         {'id': str(b.get('id')), 'title': str(b.get('title'))[:20]}
                                         for b in action_buttons[:2] if b.get('title')
@@ -274,7 +399,7 @@ class MetaWhatsAppWebhookView(views.APIView):
                                     follow_btns.append({'id': 'btn_main_menu', 'title': 'Main Menu'})
                                     bot_res = meta_client.send_interactive_buttons(
                                         to_phone_number=from_phone,
-                                        header_text=str(matched_item.get('title') or client.name)[:60],
+                                        header_text=str(sub_item.get('title') or parent_item.get('title') or client.name)[:60],
                                         body_text=bot_sent_text,
                                         buttons=follow_btns[:3],
                                         footer_text=str(flow.get('footer_text') or client.name)[:60]
@@ -315,6 +440,17 @@ class MetaWhatsAppWebhookView(views.APIView):
                                 status='SENT',
                                 sent_at=now
                             )
+                            if flow_enabled:
+                                _schedule_inactivity_timer(
+                                    conv=conv,
+                                    client=client,
+                                    account=account,
+                                    contact=contact,
+                                    to_phone=from_phone,
+                                    meta_client=meta_client,
+                                    trigger_ts=now.timestamp(),
+                                    delay_seconds=60.0,
+                                )
 
         return HttpResponse('EVENT_RECEIVED', status=200)
 
