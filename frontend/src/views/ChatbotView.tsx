@@ -166,17 +166,18 @@ export const ChatbotView: React.FC = () => {
             <Sparkles className="w-3.5 h-3.5" />
             <span>Load Sample Flow</span>
           </button>
-          <label className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={flowEnabled}
-              onChange={(e) => setFlowEnabled(e.target.checked)}
-              className="w-4 h-4 accent-[#075E54] rounded"
-            />
-            <span className="text-xs font-bold text-slate-800">
-              {flowEnabled ? 'Bot Active' : 'Enable Bot'}
-            </span>
-          </label>
+          <button
+            type="button"
+            onClick={() => setFlowEnabled(!flowEnabled)}
+            className={`inline-flex items-center space-x-2 px-3.5 py-2 rounded-xl border text-xs font-bold transition-all ${
+              flowEnabled
+                ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${flowEnabled ? 'bg-white animate-pulse' : 'bg-slate-400'}`} />
+            <span>{flowEnabled ? 'Bot Active (ON)' : 'Bot Paused (Click to Enable)'}</span>
+          </button>
         </div>
       </div>
 
@@ -278,12 +279,13 @@ export const ChatbotView: React.FC = () => {
               {menuItems.length < 10 && (
                 <button
                   type="button"
-                  onClick={() =>
+                  onClick={() => {
+                    if (!flowEnabled && menuItems.length === 0) setFlowEnabled(true);
                     setMenuItems([
                       ...menuItems,
                       { id: `item_${Date.now()}`, title: '', description: '', reply_text: '' },
-                    ])
-                  }
+                    ]);
+                  }}
                   className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-[#075E54] hover:bg-[#064E3B] text-white text-xs font-bold transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" />
