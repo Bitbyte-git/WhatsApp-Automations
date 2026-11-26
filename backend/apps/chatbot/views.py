@@ -30,8 +30,37 @@ class ChatbotConfigViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        client = user.client if not user.is_superadmin else serializer.validated_data.get('client')
+        client = None
+        if not user.is_superadmin:
+            client = user.client
+        else:
+            client = serializer.validated_data.get('client')
+            if not client:
+                cid = self.request.data.get('client_id') or self.request.headers.get('X-Tenant-ID')
+                if cid:
+                    client = Client.objects.filter(id=cid).first()
+            if not client:
+                client = Client.objects.first()
         serializer.save(client=client)
+
+    def create(self, request, *args, **kwargs):
+        # Support seamless save/upsert since client -> ChatbotConfiguration is OneToOne
+        user = request.user
+        client = user.client if not user.is_superadmin else None
+        if not client:
+            cid = request.data.get('client') or request.data.get('client_id') or request.headers.get('X-Tenant-ID')
+            if cid:
+                client = Client.objects.filter(id=cid).first()
+            if not client:
+                client = Client.objects.first()
+
+        existing = ChatbotConfiguration.objects.filter(client=client).first() if client else None
+        if existing:
+            serializer = self.get_serializer(existing, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return super().create(request, *args, **kwargs)
 
     @action(detail=True, methods=['post'])
     def simulate(self, request, pk=None):

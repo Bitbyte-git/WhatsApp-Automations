@@ -12,6 +12,9 @@ class KnowledgeDocumentSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'client': {'required': False},
+        }
 
 
 class ChatbotConfigSerializer(serializers.ModelSerializer):
@@ -30,6 +33,9 @@ class ChatbotConfigSerializer(serializers.ModelSerializer):
             'interactive_flow', 'documents_count', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'client': {'required': False},
+        }
 
 
 class SimulateChatSerializer(serializers.Serializer):
