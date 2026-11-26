@@ -121,6 +121,30 @@ class MetaCloudAPIClient:
             components=components
         )
 
+    def send_authentication_otp_template(self, to_phone_number, otp_code, template_name='bitbyte_auth_otp', language_code='en'):
+        """
+        Sends an approved Meta AUTHENTICATION (OTP) template with Copy Code button.
+        """
+        code_str = str(otp_code).strip()[:15]
+        components = [
+            {
+                'type': 'body',
+                'parameters': [{'type': 'text', 'text': code_str}],
+            },
+            {
+                'type': 'button',
+                'sub_type': 'url',
+                'index': '0',
+                'parameters': [{'type': 'text', 'text': code_str}],
+            },
+        ]
+        return self.send_template_message(
+            to_phone_number=to_phone_number,
+            template_name=template_name,
+            language_code=language_code or 'en',
+            components=components
+        )
+
     def send_template_message(self, to_phone_number, template_name, language_code='en_US', components=None):
         """
         Sends a pre-approved Meta WhatsApp template message.
@@ -309,47 +333,61 @@ class MetaCloudAPIClient:
         import re
         components = []
 
-        if header_text and header_text.strip():
-            header_comp = {
-                'type': 'HEADER',
-                'format': 'TEXT',
-                'text': header_text.strip()[:60],
-            }
-            if re.search(r'\{\{\d+\}\}', header_text):
-                header_comp['example'] = {'header_text': ['Sample Header']}
-            components.append(header_comp)
-
-        body_comp = {
-            'type': 'BODY',
-            'text': body_text.strip()[:1024],
-        }
-        body_vars = sorted(set(re.findall(r'\{\{(\d+)\}\}', body_text or '')), key=lambda x: int(x))
-        if body_vars:
-            body_comp['example'] = {
-                'body_text': [[f'Sample_{v}' for v in body_vars]]
-            }
-        components.append(body_comp)
-
-        if footer_text and footer_text.strip():
-            components.append({
-                'type': 'FOOTER',
-                'text': footer_text.strip()[:60],
-            })
-
-        if buttons:
-            meta_buttons = []
-            for btn in buttons[:3]:
-                btn_text = (btn.get('text') if isinstance(btn, dict) else str(btn)).strip()
-                if btn_text:
-                    meta_buttons.append({
-                        'type': 'QUICK_REPLY',
-                        'text': btn_text[:25],
-                    })
-            if meta_buttons:
-                components.append({
+        if category.upper() == 'AUTHENTICATION':
+            components = [
+                {'type': 'BODY', 'add_security_recommendation': True},
+                {'type': 'FOOTER', 'code_expiration_minutes': 10},
+                {
                     'type': 'BUTTONS',
-                    'buttons': meta_buttons,
+                    'buttons': [{
+                        'type': 'OTP',
+                        'otp_type': 'COPY_CODE',
+                        'text': 'Copy Code',
+                    }],
+                },
+            ]
+        else:
+            if header_text and header_text.strip():
+                header_comp = {
+                    'type': 'HEADER',
+                    'format': 'TEXT',
+                    'text': header_text.strip()[:60],
+                }
+                if re.search(r'\{\{\d+\}\}', header_text):
+                    header_comp['example'] = {'header_text': ['Sample Header']}
+                components.append(header_comp)
+
+            body_comp = {
+                'type': 'BODY',
+                'text': body_text.strip()[:1024],
+            }
+            body_vars = sorted(set(re.findall(r'\{\{(\d+)\}\}', body_text or '')), key=lambda x: int(x))
+            if body_vars:
+                body_comp['example'] = {
+                    'body_text': [[f'Sample_{v}' for v in body_vars]]
+                }
+            components.append(body_comp)
+
+            if footer_text and footer_text.strip():
+                components.append({
+                    'type': 'FOOTER',
+                    'text': footer_text.strip()[:60],
                 })
+
+            if buttons:
+                meta_buttons = []
+                for btn in buttons[:3]:
+                    btn_text = (btn.get('text') if isinstance(btn, dict) else str(btn)).strip()
+                    if btn_text:
+                        meta_buttons.append({
+                            'type': 'QUICK_REPLY',
+                            'text': btn_text[:25],
+                        })
+                if meta_buttons:
+                    components.append({
+                        'type': 'BUTTONS',
+                        'buttons': meta_buttons,
+                    })
 
         url = f"{self.base_url}/{self.waba_id}/message_templates"
         payload = {

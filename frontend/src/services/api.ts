@@ -127,6 +127,8 @@ export const api = {
   getTemplates: (params = '') => api.get<any>(`/templates/${params ? `?${params}` : ''}`),
   createTemplate: (data: any) => api.post<any>('/templates/', data),
   syncTemplatesFromMeta: (data: any) => api.post<any>('/templates/sync_from_meta/', data),
+  sendTemplateOtp: (id: number, data: { phone_number: string; otp_code?: string }) =>
+    api.post<any>(`/templates/${id}/send_otp/`, data),
 
   // Campaigns
   getCampaigns: (params = '') => api.get<any>(`/campaigns/${params ? `?${params}` : ''}`),

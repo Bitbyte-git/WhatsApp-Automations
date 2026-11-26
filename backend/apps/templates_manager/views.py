@@ -100,6 +100,55 @@ class MessageTemplateViewSet(viewsets.ModelViewSet):
         out_serializer = self.get_serializer(instance)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=['post'])
+    def send_otp(self, request, pk=None):
+        """
+        Dispatches a one-time verification code using an approved AUTHENTICATION template.
+        """
+        import random
+        template = self.get_object()
+        if template.category != 'AUTHENTICATION':
+            return Response({'error': 'Only AUTHENTICATION templates can send OTPs.'}, status=status.HTTP_400_BAD_REQUEST)
+        if template.status != 'APPROVED':
+            return Response({'error': f"Template '{template.name}' is currently {template.status}. Wait for Meta approval first."}, status=status.HTTP_400_BAD_REQUEST)
+
+        raw_phone = str(request.data.get('phone_number', '')).strip()
+        digits = ''.join(ch for ch in raw_phone if ch.isdigit())
+        if len(digits) == 10:
+            digits = f'91{digits}'
+        if len(digits) < 11:
+            return Response({'error': 'Enter a valid 10-digit or country-code WhatsApp phone number.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        otp_code = str(request.data.get('otp_code', '')).strip() or f'{random.randint(100000, 999999)}'
+
+        account = template.whatsapp_account
+        if not account:
+            account = WhatsAppAccount.objects.filter(client=template.client, connection_status='CONNECTED').first()
+        if not account:
+            return Response({'error': 'No connected WhatsApp Account found.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        meta_client = MetaCloudAPIClient(
+            phone_number_id=account.phone_number_id,
+            access_token=account.access_token,
+            waba_id=account.waba_id
+        )
+        res = meta_client.send_authentication_otp_template(
+            to_phone_number=digits,
+            otp_code=otp_code,
+            template_name=template.name,
+            language_code=template.language or 'en'
+        )
+        if not res.get('success'):
+            return Response({'error': res.get('error', 'Failed to send OTP via Meta.')}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'success': True,
+            'otp_code': otp_code,
+            'phone_number': f'+{digits}',
+            'wamid': res.get('wamid', ''),
+            'message': f'OTP {otp_code} sent to +{digits}!',
+        })
+
     @action(detail=False, methods=['post'])
     def sync_from_meta(self, request):
         """

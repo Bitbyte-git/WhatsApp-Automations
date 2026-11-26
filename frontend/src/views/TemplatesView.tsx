@@ -28,6 +28,11 @@ export const TemplatesView: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedPreview, setSelectedPreview] = useState<MessageTemplate | null>(null);
+  const [otpModalTemplate, setOtpModalTemplate] = useState<MessageTemplate | null>(null);
+  const [otpPhone, setOtpPhone] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpFeedback, setOtpFeedback] = useState('');
 
   // Form State
   const [name, setName] = useState('');
@@ -96,11 +101,17 @@ export const TemplatesView: React.FC = () => {
         name: name.toLowerCase().replace(/\s+/g, '_'),
         category,
         language,
-        header_type: headerText.trim() ? 'TEXT' : headerType,
-        header_text: headerText,
-        body_text: bodyText,
-        footer_text: footerText,
-        buttons,
+        header_type: category === 'AUTHENTICATION' ? 'NONE' : headerText.trim() ? 'TEXT' : headerType,
+        header_text: category === 'AUTHENTICATION' ? '' : headerText,
+        body_text:
+          category === 'AUTHENTICATION'
+            ? '{{1}} is your verification code. For your security, do not share this code.'
+            : bodyText,
+        footer_text: category === 'AUTHENTICATION' ? 'This code expires in 10 minutes.' : footerText,
+        buttons:
+          category === 'AUTHENTICATION'
+            ? [{ type: 'OTP', text: 'Copy Code' }]
+            : buttons,
         whatsapp_account: accountId ? parseInt(accountId) : accounts[0]?.id,
       };
 
@@ -232,7 +243,24 @@ export const TemplatesView: React.FC = () => {
 
                 <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between text-[11px] text-gray-400">
                   <span>WABA: {tmpl.whatsapp_account_name || 'Global'}</span>
-                  <span>Created: {new Date(tmpl.created_at).toLocaleDateString()}</span>
+                  <div className="flex items-center space-x-3">
+                    {tmpl.category === 'AUTHENTICATION' && tmpl.status === 'APPROVED' && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOtpFeedback('');
+                          setOtpPhone('');
+                          setOtpCode('');
+                          setOtpModalTemplate(tmpl);
+                        }}
+                        className="px-2.5 py-1 bg-emerald-50 text-[#075E54] hover:bg-emerald-100 rounded-lg font-bold transition-colors"
+                      >
+                        Send Test OTP
+                      </button>
+                    )}
+                    <span>Created: {new Date(tmpl.created_at).toLocaleDateString()}</span>
+                  </div>
                 </div>
               </div>
             ))
@@ -340,52 +368,63 @@ export const TemplatesView: React.FC = () => {
             </div>
           </div>
 
-          <div>
-            <label className="block font-semibold text-gray-700 uppercase tracking-wider mb-1">Header Text (Optional)</label>
-            <input
-              type="text"
-              placeholder="e.g. Order Confirmed! 🎉"
-              value={headerText}
-              onChange={(e) => setHeaderText(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500"
-            />
-          </div>
+          {category === 'AUTHENTICATION' ? (
+            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1">
+              <p className="font-bold">Official Meta OTP Format (Auto-Configured)</p>
+              <p className="text-[11px]">
+                Meta automatically uses its verified OTP layout: <code>{'{{1}}'} is your verification code</code> + 10-minute expiry + <strong>Copy Code</strong> button.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div>
+                <label className="block font-semibold text-gray-700 uppercase tracking-wider mb-1">Header Text (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Order Confirmed! 🎉"
+                  value={headerText}
+                  onChange={(e) => setHeaderText(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500"
+                />
+              </div>
 
-          <div>
-            <label className="block font-semibold text-gray-700 uppercase tracking-wider mb-1">
-              Body Message Text (Variables like {'{{1}}'}, {'{{2}}'}) *
-            </label>
-            <textarea
-              rows={4}
-              required
-              placeholder="Hello {{1}}, your order #{{2}} has been shipped and is on the way!"
-              value={bodyText}
-              onChange={(e) => setBodyText(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500"
-            />
-          </div>
+              <div>
+                <label className="block font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                  Body Message Text (Variables like {'{{1}}'}, {'{{2}}'}) *
+                </label>
+                <textarea
+                  rows={4}
+                  required
+                  placeholder="Hello {{1}}, your order #{{2}} has been shipped and is on the way!"
+                  value={bodyText}
+                  onChange={(e) => setBodyText(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500"
+                />
+              </div>
 
-          <div>
-            <label className="block font-semibold text-gray-700 uppercase tracking-wider mb-1">Footer Text (Optional)</label>
-            <input
-              type="text"
-              placeholder="BitByte Technologies • Reply STOP to unsubscribe"
-              value={footerText}
-              onChange={(e) => setFooterText(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500"
-            />
-          </div>
+              <div>
+                <label className="block font-semibold text-gray-700 uppercase tracking-wider mb-1">Footer Text (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="BitByte Technologies • Reply STOP to unsubscribe"
+                  value={footerText}
+                  onChange={(e) => setFooterText(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500"
+                />
+              </div>
 
-          <div>
-            <label className="block font-semibold text-gray-700 uppercase tracking-wider mb-1">Quick Reply Button Label (Optional)</label>
-            <input
-              type="text"
-              placeholder="e.g. Track My Order"
-              value={buttonText}
-              onChange={(e) => setButtonText(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500"
-            />
-          </div>
+              <div>
+                <label className="block font-semibold text-gray-700 uppercase tracking-wider mb-1">Quick Reply Button Label (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Track My Order"
+                  value={buttonText}
+                  onChange={(e) => setButtonText(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+            </>
+          )}
 
           <div className="pt-3 flex justify-end space-x-2">
             <button
@@ -401,6 +440,87 @@ export const TemplatesView: React.FC = () => {
               className="px-4 py-2 bg-[#075E54] hover:bg-[#064E3B] text-white rounded-xl font-semibold shadow-sm disabled:opacity-50"
             >
               {formLoading ? 'Submitting...' : 'Submit for Meta Approval'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Send Test OTP Modal */}
+      <Modal
+        isOpen={!!otpModalTemplate}
+        onClose={() => setOtpModalTemplate(null)}
+        title={`Send OTP via ${otpModalTemplate?.name || 'Template'}`}
+      >
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!otpModalTemplate) return;
+            setOtpSending(true);
+            setOtpFeedback('');
+            try {
+              const res = await api.sendTemplateOtp(otpModalTemplate.id, {
+                phone_number: otpPhone,
+                otp_code: otpCode || undefined,
+              });
+              setOtpFeedback(res?.message || 'OTP sent successfully!');
+            } catch (err: any) {
+              setOtpFeedback(`Error: ${err.message || 'Failed to send OTP'}`);
+            } finally {
+              setOtpSending(false);
+            }
+          }}
+          className="space-y-4 text-xs"
+        >
+          {otpFeedback && (
+            <div
+              className={`p-3 rounded-xl border ${
+                otpFeedback.startsWith('Error:')
+                  ? 'bg-rose-50 border-rose-200 text-rose-700'
+                  : 'bg-emerald-50 border-emerald-200 text-emerald-800 font-semibold'
+              }`}
+            >
+              {otpFeedback}
+            </div>
+          )}
+          <div>
+            <label className="block font-semibold text-gray-700 uppercase tracking-wider mb-1">
+              Customer WhatsApp Number (10-digit) *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. 9600681036"
+              value={otpPhone}
+              onChange={(e) => setOtpPhone(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 font-mono"
+            />
+          </div>
+          <div>
+            <label className="block font-semibold text-gray-700 uppercase tracking-wider mb-1">
+              OTP Code (Optional — auto-generates 6 digits if empty)
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. 482910"
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 font-mono"
+            />
+          </div>
+          <div className="pt-2 flex justify-end space-x-2">
+            <button
+              type="button"
+              onClick={() => setOtpModalTemplate(null)}
+              className="px-4 py-2 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50"
+            >
+              Close
+            </button>
+            <button
+              type="submit"
+              disabled={otpSending}
+              className="px-4 py-2 bg-[#075E54] hover:bg-[#064E3B] text-white rounded-xl font-semibold disabled:opacity-50"
+            >
+              {otpSending ? 'Sending OTP...' : 'Send OTP Now'}
             </button>
           </div>
         </form>
