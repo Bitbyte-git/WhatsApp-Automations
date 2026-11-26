@@ -60,6 +60,14 @@ class MetaCloudAPIClient:
             logger.error(f"Meta API send text error: {e}")
             return {'success': False, 'error': str(e)}
 
+    @staticmethod
+    def _sanitize_template_param(text, max_len=1024):
+        """Meta template text parameters forbid newlines, tabs, and 4+ consecutive spaces."""
+        import re
+        safe = re.sub(r'[\r\n\t]+', ' | ', text or '')
+        safe = re.sub(r' {2,}', ' ', safe).strip()
+        return safe[:max_len] or '-'
+
     def send_marketing_offer_template(self, to_phone_number, body_text, image_url=None):
         """
         Sends the official pre-approved bitbyte_offer marketing template with dynamic image and dynamic body text.
@@ -78,9 +86,7 @@ class MetaCloudAPIClient:
                     'image': {'link': meta_img_url}
                 }]
             })
-        import re
-        safe_body = re.sub(r'[\r\n\t]+', ' | ', body_text or '')
-        safe_body = re.sub(r' {2,}', ' ', safe_body).strip()[:1024]
+        safe_body = self._sanitize_template_param(body_text)
         components.append({
             'type': 'body',
             'parameters': [{
@@ -100,11 +106,12 @@ class MetaCloudAPIClient:
         Sends the bitbyte_utility_update template (Utility category, ~0.14 INR/msg).
         Created as text-only Utility template for instant Meta approval.
         """
+        safe_body = self._sanitize_template_param(body_text)
         components = [{
             'type': 'body',
             'parameters': [{
                 'type': 'text',
-                'text': body_text[:1024]
+                'text': safe_body
             }]
         }]
         return self.send_template_message(

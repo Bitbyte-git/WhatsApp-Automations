@@ -414,56 +414,25 @@ class CampaignViewSet(viewsets.ModelViewSet):
                                 text_content=full_message
                             )
                     elif message_category == 'UTILITY':
-                        # Utility Template Dispatch (~₹0.14/msg) with direct session fallback
-                        tpl_res = meta_client.send_utility_update_template(
+                        # Utility Template Dispatch (~₹0.14/msg) — always use approved template so cold/24h+ numbers receive it
+                        res = meta_client.send_utility_update_template(
                             to_phone_number=cleaned_phone,
                             body_text=formatted_body,
                             image_url=image_url if image_url else None
                         )
-                        if tpl_res and tpl_res.get('success'):
-                            res = tpl_res
-                        elif image_url:
-                            res = meta_client.send_image_message(
-                                to_phone_number=cleaned_phone,
-                                image_url=image_url,
-                                caption=full_message
-                            )
-                        else:
-                            res = meta_client.send_text_message(
-                                to_phone_number=cleaned_phone,
-                                text_content=full_message
-                            )
                     else:
-                        # Marketing Broadcast (Default)
-                        if image_url:
-                            tpl_res = meta_client.send_marketing_offer_template(
+                        # Marketing Broadcast (Default) — always use approved bitbyte_offer template so new/24h+ numbers receive it
+                        if not image_url:
+                            res = {
+                                'success': False,
+                                'error': 'Marketing template (bitbyte_offer) requires an image. Please upload/select 1 image in section 1b before sending to new numbers.'
+                            }
+                        else:
+                            res = meta_client.send_marketing_offer_template(
                                 to_phone_number=cleaned_phone,
                                 body_text=formatted_body,
                                 image_url=image_url
                             )
-                            if tpl_res and tpl_res.get('success'):
-                                res = tpl_res
-                            else:
-                                res = meta_client.send_image_message(
-                                    to_phone_number=cleaned_phone,
-                                    image_url=image_url,
-                                    caption=full_message
-                                )
-                                if not res or not res.get('success'):
-                                    if tpl_res and not res:
-                                        res = tpl_res
-                        else:
-                            res = meta_client.send_text_message(
-                                to_phone_number=cleaned_phone,
-                                text_content=full_message
-                            )
-                            if not res or not res.get('success'):
-                                tpl_res = meta_client.send_marketing_offer_template(
-                                    to_phone_number=cleaned_phone,
-                                    body_text=formatted_body
-                                )
-                                if tpl_res and tpl_res.get('success'):
-                                    res = tpl_res
                 else:
                     # Infisq Gateway Dispatch (TenDigit Method 1 - Saved)
                     if button_str:

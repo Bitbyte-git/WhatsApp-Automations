@@ -418,9 +418,10 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
                   type="button"
                   onClick={() => {
                     if (serviceType === 'UTILITY') {
-                      setCampaignTitle('Project Milestone Update');
-                      setHeaderText('BitByte Account Update');
-                      setMessage('Your Web App & Mobile App project milestone has been completed. Please review the staging link shared to your email.');
+                      setCampaignTitle('Payment Confirmation - Order #BB-1042');
+                      setHeaderText('');
+                      setButtons([]);
+                      setMessage('Order #BB-1042 (Rs. 2,499) - Paid via UPI. Invoice generated and shared to your registered email.');
                     } else if (serviceType === 'SERVICE') {
                       setCampaignTitle('Customer Support Reply');
                       setHeaderText('BitByte Support Team');
@@ -452,24 +453,24 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Header Text (Optional)
-              </label>
-              <input
-                type="text"
-                value={headerText}
-                onChange={(e) => setHeaderText(e.target.value)}
-                placeholder={
-                  serviceType === 'UTILITY'
-                    ? 'e.g. Invoice #BB-1042 / Status Update'
-                    : serviceType === 'SERVICE'
-                    ? 'e.g. BitByte Support Team'
-                    : 'e.g. Special Announcement'
-                }
-                className="w-full px-3.5 py-2 text-xs font-semibold border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54]"
-              />
-            </div>
+            {serviceType !== 'UTILITY' && (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Header Text (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={headerText}
+                  onChange={(e) => setHeaderText(e.target.value)}
+                  placeholder={
+                    serviceType === 'SERVICE'
+                      ? 'e.g. BitByte Support Team'
+                      : 'e.g. Special Announcement'
+                  }
+                  className="w-full px-3.5 py-2 text-xs font-semibold border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54]"
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
@@ -490,60 +491,61 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
               />
             </div>
 
-            {/* Buttons Builder */}
-            <div className="space-y-3 pt-2">
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                Action Buttons (Optional, up to 3)
-              </label>
+            {/* Buttons Builder (hidden for text-only Utility template) */}
+            {serviceType !== 'UTILITY' && (
+              <div className="space-y-3 pt-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Action Buttons (Optional, up to 3)
+                </label>
 
-              {buttons.length < 3 && (
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    value={newButtonText}
-                    maxLength={25}
-                    onChange={(e) => setNewButtonText(e.target.value)}
-                    placeholder="Enter button label..."
-                    className="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54]"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddButton}
-                    className="px-4 py-2 bg-[#075E54] hover:bg-[#064E3B] text-white rounded-xl text-xs font-bold transition-colors"
-                  >
-                    Add
-                  </button>
-                </div>
-              )}
+                {buttons.length < 3 && (
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={newButtonText}
+                      maxLength={25}
+                      onChange={(e) => setNewButtonText(e.target.value)}
+                      placeholder="Enter button label..."
+                      className="flex-1 px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54]"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddButton}
+                      className="px-4 py-2 bg-[#075E54] hover:bg-[#064E3B] text-white rounded-xl text-xs font-bold transition-colors"
+                    >
+                      Add
+                    </button>
+                  </div>
+                )}
 
-              {buttons.length > 0 && (
-                <div className="space-y-2 pt-1">
-                  {buttons.map((btn, idx) => (
-                    <div key={idx} className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-                      <span className="font-semibold text-slate-800">{idx + 1}. {btn}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveButton(idx)}
-                        className="text-slate-400 hover:text-rose-600 p-0.5 rounded"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                {buttons.length > 0 && (
+                  <div className="space-y-2 pt-1">
+                    {buttons.map((btn, idx) => (
+                      <div key={idx} className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                        <span className="font-semibold text-slate-800">{idx + 1}. {btn}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveButton(idx)}
+                          className="text-slate-400 hover:text-rose-600 p-0.5 rounded"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* ── Marketing Image Upload Section ───────────────────── */}
+          {/* ── Marketing / Service Image Upload Section (hidden for text-only Utility template) ── */}
+          {serviceType !== 'UTILITY' && (
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2">
                 <ImageIcon className="w-4 h-4 text-[#075E54]" />
                 <span>
-                  {serviceType === 'UTILITY'
-                    ? '1b. Utility Attachment Image (Optional)'
-                    : serviceType === 'SERVICE'
+                  {serviceType === 'SERVICE'
                     ? '1b. Reply Image / Poster (Optional)'
                     : '1b. Marketing Image (Optional)'}
                 </span>
@@ -644,6 +646,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
               </p>
             )}
           </div>
+          )}
 
           {/* Image Preview Modal */}
           {previewImageUrl && (
