@@ -346,9 +346,18 @@ class CampaignViewSet(viewsets.ModelViewSet):
                     }
                 )
 
-            template = MessageTemplate.objects.filter(client=client).first()
-            if not template:
-                template = MessageTemplate.objects.first()
+            preferred_tpl_name = (
+                'bitbyte_utility_update' if message_category == 'UTILITY'
+                else 'bitbyte_offer' if message_category == 'MARKETING'
+                else 'quick_service_broadcast'
+            )
+            template = (
+                MessageTemplate.objects.filter(client=client, name=preferred_tpl_name).first()
+                or MessageTemplate.objects.filter(client=client, category=message_category).first()
+                or MessageTemplate.objects.filter(name=preferred_tpl_name).first()
+                or MessageTemplate.objects.filter(client=client).first()
+                or MessageTemplate.objects.first()
+            )
             if not template:
                 template, _ = MessageTemplate.objects.get_or_create(
                     client=client,
@@ -368,7 +377,8 @@ class CampaignViewSet(viewsets.ModelViewSet):
                 template=template,
                 name=campaign_name,
                 status='IN_PROGRESS',
-                total_recipients=len(recipients_list)
+                total_recipients=len(recipients_list),
+                template_params={'message_category': message_category},
             )
 
             sent_count = 0

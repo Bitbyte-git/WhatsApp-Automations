@@ -48,7 +48,9 @@ export const MessageHistoryView: React.FC = () => {
 
   const getCampaignCostInfo = (camp: any) => {
     const nameLower = (camp.name || '').toLowerCase();
-    const cat = (camp.template_details?.category || '').toUpperCase();
+    const paramCat = (camp.template_params?.message_category || '').toUpperCase();
+    const tplName = (camp.template_name || camp.template_details?.name || '').toLowerCase();
+    const cat = paramCat || (camp.template_details?.category || '').toUpperCase();
     const isService =
       cat === 'SERVICE' ||
       nameLower.includes('service reply') ||
@@ -56,13 +58,16 @@ export const MessageHistoryView: React.FC = () => {
     if (isService) {
       return { label: 'Service (24h)', unitRate: 0, isFree: true };
     }
-    if (cat === 'UTILITY' || nameLower.includes('utility') || nameLower.includes('payment') || nameLower.includes('order')) {
-      return { label: 'Utility', unitRate: 0.14, isFree: false };
+    if (
+      paramCat === 'UTILITY' ||
+      (!paramCat && (tplName === 'bitbyte_utility_update' || nameLower.includes('utility') || nameLower.includes('payment') || nameLower.includes('order')))
+    ) {
+      return { label: 'Utility', unitRate: 0.115, isFree: false };
     }
     if (cat === 'AUTHENTICATION' || nameLower.includes('otp') || nameLower.includes('auth')) {
-      return { label: 'Auth / OTP', unitRate: 0.14, isFree: false };
+      return { label: 'Auth / OTP', unitRate: 0.115, isFree: false };
     }
-    return { label: 'Marketing', unitRate: 0.85, isFree: false };
+    return { label: 'Marketing', unitRate: 0.8631, isFree: false };
   };
 
   return (
