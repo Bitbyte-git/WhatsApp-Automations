@@ -18,6 +18,7 @@ import { MessageHistoryView } from './views/MessageHistoryView';
 import { ChatbotView } from './views/ChatbotView';
 import { AnalyticsView } from './views/AnalyticsView';
 import { WalletBillingView } from './views/WalletBillingView';
+import { MetaBalanceView } from './views/MetaBalanceView';
 import { TransactionsView } from './views/TransactionsView';
 import { ApiWebhooksView } from './views/ApiWebhooksView';
 import { SettingsView } from './views/SettingsView';
@@ -58,6 +59,7 @@ const AdminDashboardApp: React.FC = () => {
       {currentTab === 'billing' && <WalletBillingView />}
       {currentTab === 'transactions' && <TransactionsView />}
       {currentTab === 'webhooks' && <ApiWebhooksView />}
+      {currentTab === 'meta-balance' && <MetaBalanceView />}
       {currentTab === 'settings' && <SettingsView />}
     </Layout>
   );

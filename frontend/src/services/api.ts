@@ -108,6 +108,7 @@ export const api = {
 
   // WhatsApp Accounts
   getWhatsAppAccounts: (params = '') => api.get<any>(`/whatsapp/accounts/${params ? `?${params}` : ''}`),
+  getMetaBalance: (days = 30) => api.get<any>(`/whatsapp/accounts/meta_balance/?days=${days}`),
   createWhatsAppAccount: (data: any) => api.post<any>('/whatsapp/accounts/', data),
   syncWhatsAppAccount: (id: number) => api.post<any>(`/whatsapp/accounts/${id}/sync_status/`),
   getMetaStatus: () => api.get<any>('/whatsapp/status/'),

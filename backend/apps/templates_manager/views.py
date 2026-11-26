@@ -49,13 +49,17 @@ class MessageTemplateViewSet(viewsets.ModelViewSet):
 
         user = request.user
         account = validated.get('whatsapp_account')
+        if account and not str(account.waba_id or '').isdigit():
+            account = None
         if not account and user.client:
             account = WhatsAppAccount.objects.filter(client=user.client, connection_status='CONNECTED').first() or WhatsAppAccount.objects.filter(client=user.client).first()
-        if not account and user.is_superadmin:
+            if account and not str(account.waba_id or '').isdigit():
+                account = None
+        if not account:
             client_obj = validated.get('client')
             if client_obj:
                 account = WhatsAppAccount.objects.filter(client=client_obj, connection_status='CONNECTED').first() or WhatsAppAccount.objects.filter(client=client_obj).first()
-            else:
+            if not account or not str(account.waba_id or '').isdigit():
                 account = WhatsAppAccount.objects.filter(connection_status='CONNECTED').exclude(waba_id__startswith='infisq').first() or WhatsAppAccount.objects.filter(connection_status='CONNECTED').first()
 
         if not account:

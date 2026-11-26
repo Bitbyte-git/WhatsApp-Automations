@@ -67,6 +67,69 @@ class WhatsAppAccountViewSet(viewsets.ModelViewSet):
         else:
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=False, methods=['get'])
+    def meta_balance(self, request):
+        """
+        Returns real Meta WABA pricing_analytics spend & volume breakdown for Superadmin.
+        """
+        if not request.user.is_superadmin:
+            return Response({'error': 'Superadmin access required.'}, status=status.HTTP_403_FORBIDDEN)
+
+        days = int(request.query_params.get('days', 30) or 30)
+        account = (
+            WhatsAppAccount.objects.filter(connection_status='CONNECTED')
+            .exclude(waba_id__startswith='infisq')
+            .first()
+            or WhatsAppAccount.objects.filter(connection_status='CONNECTED').first()
+        )
+        if not account or not str(account.waba_id or '').isdigit():
+            return Response({'error': 'No connected Meta WABA account found.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        meta_client = MetaCloudAPIClient(
+            phone_number_id=account.phone_number_id,
+            access_token=account.access_token,
+            waba_id=account.waba_id
+        )
+        res = meta_client.fetch_pricing_analytics(days=days)
+        if not res.get('success'):
+            return Response({'error': res.get('error', 'Failed to fetch Meta analytics')}, status=status.HTTP_400_BAD_REQUEST)
+
+        raw = res['data']
+        points = []
+        for block in raw.get('pricing_analytics', {}).get('data', []):
+            points.extend(block.get('data_points', []))
+
+        summary = {
+            'MARKETING': {'volume': 0, 'cost': 0.0},
+            'UTILITY': {'volume': 0, 'cost': 0.0},
+            'AUTHENTICATION': {'volume': 0, 'cost': 0.0},
+            'SERVICE': {'volume': 0, 'cost': 0.0},
+        }
+        for pt in points:
+            cat = str(pt.get('pricing_category', 'SERVICE')).upper()
+            if cat not in summary:
+                summary[cat] = {'volume': 0, 'cost': 0.0}
+            summary[cat]['volume'] += int(pt.get('volume', 0) or 0)
+            summary[cat]['cost'] += float(pt.get('cost', 0) or 0.0)
+
+        total_cost = sum(v['cost'] for v in summary.values())
+        total_volume = sum(v['volume'] for v in summary.values())
+
+        return Response({
+            'waba_id': raw.get('id', account.waba_id),
+            'waba_name': raw.get('name', account.business_name),
+            'phone_number': account.phone_number,
+            'currency': raw.get('currency', 'INR'),
+            'days': days,
+            'total_cost': round(total_cost, 4),
+            'total_volume': total_volume,
+            'breakdown': {
+                k: {'volume': v['volume'], 'cost': round(v['cost'], 4)}
+                for k, v in summary.items()
+            },
+            'meta_billing_url': 'https://business.facebook.com/billing_hub/accounts',
+        })
+
 
 class MetaConfigStatusView(views.APIView):
     """

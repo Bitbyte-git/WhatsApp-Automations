@@ -15,7 +15,7 @@ class MessageTemplateSerializer(serializers.ModelSerializer):
             'footer_text', 'buttons', 'meta_template_id',
             'rejection_reason', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'client', 'created_at', 'updated_at']
 
     def validate_name(self, value):
         cleaned = value.strip().lower()

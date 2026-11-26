@@ -436,3 +436,27 @@ class MetaCloudAPIClient:
                 return {'success': False, 'error': error_msg, 'data': data}
         except requests.exceptions.RequestException as e:
             return {'success': False, 'error': str(e)}
+
+    def fetch_pricing_analytics(self, days=30):
+        """
+        Fetches official Meta WhatsApp Business Account pricing_analytics (real volume & cost by category).
+        """
+        if not self.waba_id or not self.access_token:
+            return {'success': False, 'error': 'Missing WABA ID or Access Token.'}
+
+        import time
+        now_ts = int(time.time())
+        start_ts = now_ts - (max(1, int(days)) * 86400)
+        url = f"{self.base_url}/{self.waba_id}"
+        params = {
+            'fields': f'id,name,currency,pricing_analytics.start({start_ts}).end({now_ts}).granularity(DAILY).dimensions(PRICING_CATEGORY,PRICING_TYPE)'
+        }
+        try:
+            response = requests.get(url, params=params, headers=self._get_headers(), timeout=15)
+            data = response.json()
+            if response.status_code == 200:
+                return {'success': True, 'data': data}
+            err_msg = data.get('error', {}).get('message', 'Failed to fetch Meta pricing analytics')
+            return {'success': False, 'error': err_msg, 'data': data}
+        except requests.exceptions.RequestException as e:
+            return {'success': False, 'error': str(e)}
