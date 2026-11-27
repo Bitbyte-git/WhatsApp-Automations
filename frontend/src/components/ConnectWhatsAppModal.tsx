@@ -115,9 +115,15 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
         if (res?.phone_number_id) {
           setPhoneNumberId(res.phone_number_id);
         }
-        setStep(2);
-        setResendCooldown(30);
-        setSuccessMsg(res.message || `6-digit OTP code sent via ${codeMethod} to ${fullNumber}`);
+        if (res?.already_verified) {
+          setStep(3);
+          setSuccessMsg(res.message || 'WhatsApp number connected successfully!');
+          if (onSuccess) onSuccess();
+        } else {
+          setStep(2);
+          setResendCooldown(30);
+          setSuccessMsg(res.message || `6-digit OTP code sent via ${codeMethod} to ${fullNumber}`);
+        }
       } else {
         const rawErr = [res?.error || '', res?.instruction || '', JSON.stringify(res || '')].join(' ').toLowerCase();
         if (

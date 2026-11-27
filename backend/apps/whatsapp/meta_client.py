@@ -413,6 +413,25 @@ class MetaCloudAPIClient:
         except requests.exceptions.RequestException as e:
             return {'success': False, 'error': str(e)}
 
+    def find_phone_number_in_waba(self, phone_number):
+        """
+        Queries Meta WABA phone numbers list and returns the phone_number_id matching the given phone.
+        """
+        if not self.waba_id or not self.access_token:
+            return None
+        url = f"{self.base_url}/{self.waba_id}/phone_numbers"
+        try:
+            res = requests.get(url, headers=self._get_headers(), timeout=15)
+            if res.status_code == 200:
+                clean_target = phone_number.replace('+', '').replace(' ', '').replace('-', '')
+                for item in res.json().get('data', []):
+                    item_phone = item.get('display_phone_number', '').replace('+', '').replace(' ', '').replace('-', '')
+                    if clean_target in item_phone or item_phone in clean_target:
+                        return str(item.get('id'))
+        except Exception as e:
+            logger.error(f"Error fetching WABA phone numbers: {e}")
+        return None
+
     def add_phone_number_to_waba(self, phone_number, verified_name):
         """
         Attaches a client's new phone number to the Meta WhatsApp Business Account (WABA).
@@ -420,6 +439,11 @@ class MetaCloudAPIClient:
         """
         if not self.waba_id or not self.access_token:
             return {'success': False, 'error': 'Missing Meta WABA ID or System User Access Token.'}
+
+        # First check if the number is already attached to this WABA
+        existing_id = self.find_phone_number_in_waba(phone_number)
+        if existing_id:
+            return {'success': True, 'phone_number_id': existing_id, 'already_exists': True}
 
         clean = phone_number.replace('+', '').replace(' ', '').replace('-', '')
         cc = '91'
@@ -452,19 +476,22 @@ class MetaCloudAPIClient:
             if (
                 error_code == 133010
                 or error_subcode == 133010
-                or 'already registered' in err_msg_lower
-                or 'already verified' in err_msg_lower
-                or 'verified ownership' in err_msg_lower
-                or 'already active' in err_msg_lower
-                or 'already associated' in err_msg_lower
+                or 'already registered on a mobile' in err_msg_lower
             ):
                 return {
                     'success': False,
                     'already_registered_on_mobile': True,
-                    'error': 'Sorry! This phone number is already active on WhatsApp. Please provide a new phone number that is not on WhatsApp, or delete your current mobile WhatsApp account to continue.',
+                    'error': 'This phone number is currently active on a mobile WhatsApp application. Please delete the account from your mobile WhatsApp app first, or use a fresh number.',
                     'code': 133010,
                     'data': data
                 }
+
+            # If Meta says ownership already verified or already exists on WABA, lookup its id
+            if 'verified ownership' in err_msg_lower or 'already verified' in err_msg_lower or 'already registered' in err_msg_lower:
+                found_id = self.find_phone_number_in_waba(phone_number)
+                if found_id:
+                    return {'success': True, 'phone_number_id': found_id, 'already_exists': True}
+
             error_msg = err_obj.get('error_user_msg') or err_obj.get('message') or 'Failed to add phone number to Meta WABA.'
             return {'success': False, 'error': error_msg, 'code': error_code, 'data': data}
         except requests.exceptions.RequestException as e:

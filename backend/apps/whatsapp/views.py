@@ -114,9 +114,46 @@ class WhatsAppAccountViewSet(viewsets.ModelViewSet):
                 target_phone_number_id = waba_res.get('phone_number_id')
                 meta_client.phone_number_id = target_phone_number_id
             else:
-                # If number was already on WABA or fallback to default
                 target_phone_number_id = (account.phone_number_id if account else None) or getattr(settings, 'META_PHONE_NUMBER_ID', '')
                 meta_client.phone_number_id = target_phone_number_id
+
+        # Check if already registered and verified on Meta Cloud API
+        if target_phone_number_id:
+            status_res = meta_client.check_phone_number_status()
+            if status_res.get('success'):
+                details = status_res.get('details', {})
+                if details.get('code_verification_status') == 'VERIFIED':
+                    if user.client:
+                        account_obj, _ = WhatsAppAccount.objects.get_or_create(
+                            client=user.client,
+                            defaults={
+                                'business_name': business_name or details.get('verified_name') or user.client.name,
+                                'phone_number': clean_phone,
+                                'phone_number_id': target_phone_number_id,
+                                'waba_id': waba_id or getattr(settings, 'META_WABA_ID', 'default_waba'),
+                                'connection_status': 'CONNECTED',
+                                'quality_rating': details.get('quality_rating') or 'GREEN',
+                                'is_default': True,
+                            }
+                        )
+                        account_obj.connection_status = 'CONNECTED'
+                        account_obj.quality_rating = details.get('quality_rating') or 'GREEN'
+                        account_obj.phone_number = clean_phone
+                        account_obj.phone_number_id = target_phone_number_id
+                        if business_name:
+                            account_obj.business_name = business_name
+                        account_obj.is_default = True
+                        account_obj.save()
+
+                    return Response({
+                        'success': True,
+                        'already_verified': True,
+                        'message': f'WhatsApp Business number {clean_phone} is already verified and connected successfully!',
+                        'phone_number': clean_phone,
+                        'phone_number_id': target_phone_number_id,
+                        'quality_rating': details.get('quality_rating') or 'GREEN',
+                        'connection_status': 'CONNECTED'
+                    })
 
         result = meta_client.request_phone_code(code_method=code_method)
 
