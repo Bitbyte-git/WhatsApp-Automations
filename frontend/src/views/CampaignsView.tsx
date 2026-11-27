@@ -169,7 +169,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
 
       const list = Array.from(extracted);
       if (list.length === 0) {
-        setAlertError('Excel file-la valid 10-digit WhatsApp numbers kidaikkala bro. Column check pannunga.');
+        setAlertError('No valid 10-digit WhatsApp phone numbers found in the uploaded file. Please check your columns.');
         return;
       }
 
@@ -177,7 +177,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
       setTestPhoneNumber(list.join(', '));
       setExcelSummary(`${list.length} unique numbers loaded from "${file.name}"`);
     } catch {
-      setAlertError('Excel file read panna mudiyala. Valid .xlsx, .xls, or .csv file upload pannunga.');
+      setAlertError('Could not parse file. Please upload a valid .xlsx, .xls, or .csv file.');
     } finally {
       if (excelInputRef.current) excelInputRef.current.value = '';
     }
@@ -906,8 +906,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
                 />
                 <p className="text-[11px] text-emerald-800">
                   {user?.role === 'SUPERADMIN'
-                    ? 'Tip: Excel (.xlsx / .csv) upload panna automatic-ah ella phone numbers-um extract panni ore click-la send pannalam.'
-                    : 'Test this offer on your personal mobile before sending to all contacts.'}
+                    ? 'Tip: Upload an Excel sheet (.xlsx / .csv) to automatically parse customer numbers and broadcast in one click.'
+                    : 'Test this broadcast on your personal mobile before sending to your entire audience.'}
                 </p>
               </div>
             )}

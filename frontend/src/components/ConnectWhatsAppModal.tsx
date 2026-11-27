@@ -39,6 +39,7 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
   // WhatsApp OTP Registration State
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [phoneNumberId, setPhoneNumberId] = useState('');
   const [businessName, setBusinessName] = useState(user?.client_name || user?.full_name || '');
   const [codeMethod, setCodeMethod] = useState<'SMS' | 'VOICE'>('SMS');
   const [otpCode, setOtpCode] = useState('');
@@ -93,6 +94,9 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
 
       if (res?.success) {
         setPhoneNumber(cleaned);
+        if (res?.phone_number_id) {
+          setPhoneNumberId(res.phone_number_id);
+        }
         setStep(2);
         setResendCooldown(30);
         setSuccessMsg(res.message || `6-digit OTP code sent via ${codeMethod} to ${cleaned}`);
@@ -127,6 +131,7 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
     try {
       const res = await api.verifyWhatsAppOtp({
         phone_number: phoneNumber,
+        phone_number_id: phoneNumberId,
         code: otpCode.trim(),
         pin: twoStepPin.trim() || '123456',
         business_name: businessName,
@@ -391,12 +396,12 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
                       <div className="text-xs space-y-1.5 leading-relaxed">
                         <p className="font-extrabold text-amber-950">Important Meta Cloud API Rule:</p>
                         <p>
-                          1. <strong>Fresh SIM Number (Recommended):</strong> Puthiya SIM number use panninaal direct-aa OTP vandhu connect aaidum.
+                          1. <strong>Fresh SIM Number (Recommended):</strong> Using a new, dedicated number provides instant OTP delivery and immediate activation.
                         </p>
                         <p>
-                          2. <strong>Existing WhatsApp Number:</strong> Indha number-la mobile WhatsApp app run aanaal Meta reject pannum (Error 133010). 
-                          Please mobile WhatsApp app open panni: <br />
-                          <span className="font-semibold text-amber-800">Settings ➔ Account ➔ "Delete my account"</span> kuduthutu inga number podunga.
+                          2. <strong>Existing WhatsApp Number:</strong> If this number is currently active on a mobile WhatsApp application, Meta will reject registration (Error 133010). 
+                          Please open your mobile WhatsApp app and navigate to: <br />
+                          <span className="font-semibold text-amber-800">Settings ➔ Account ➔ "Delete my account"</span> before entering the number here.
                         </p>
                       </div>
                     </div>
@@ -466,8 +471,8 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
                         <div>
                           <p className="font-bold">Number Already Active on Mobile WhatsApp!</p>
                           <p className="text-rose-700 mt-1">
-                            Meta Error 133010: Indha number mobile WhatsApp app-la register aagi irukku.
-                            Mobile WhatsApp app open panni <strong>Settings ➔ Account ➔ Delete my account</strong> pannunga, or pudhu fresh SIM number use pannunga.
+                            Meta Error 133010: This phone number is currently registered on a mobile WhatsApp application.
+                            Please open your mobile WhatsApp app, navigate to <strong>Settings ➔ Account ➔ Delete my account</strong>, or use a new dedicated SIM number.
                           </p>
                         </div>
                       </div>

@@ -90,14 +90,33 @@ class WhatsAppAccountViewSet(viewsets.ModelViewSet):
         if user.client:
             account = WhatsAppAccount.objects.filter(client=user.client).first()
 
-        target_phone_number_id = phone_number_id or (account.phone_number_id if account else None) or getattr(settings, 'META_PHONE_NUMBER_ID', '')
         access_token = (account.access_token if account and account.access_token else None) or getattr(settings, 'META_SYSTEM_USER_TOKEN', '')
+        waba_id = getattr(settings, 'META_WABA_ID', '')
+        target_phone_number_id = phone_number_id
 
         meta_client = MetaCloudAPIClient(
             phone_number_id=target_phone_number_id,
             access_token=access_token,
-            waba_id=getattr(settings, 'META_WABA_ID', '')
+            waba_id=waba_id
         )
+
+        # If phone_number_id is not yet registered for this new number, attach it to WABA first
+        if not target_phone_number_id:
+            waba_res = meta_client.add_phone_number_to_waba(clean_phone, business_name or 'Business Partner')
+            if waba_res.get('already_registered_on_mobile'):
+                return Response({
+                    'success': False,
+                    'already_registered_on_mobile': True,
+                    'error': waba_res.get('error'),
+                    'instruction': 'This number is currently active on your mobile WhatsApp app. To connect to Cloud API, open WhatsApp on your phone -> Settings -> Account -> Delete my account. Or use a fresh SIM number.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            elif waba_res.get('success'):
+                target_phone_number_id = waba_res.get('phone_number_id')
+                meta_client.phone_number_id = target_phone_number_id
+            else:
+                # If number was already on WABA or fallback to default
+                target_phone_number_id = (account.phone_number_id if account else None) or getattr(settings, 'META_PHONE_NUMBER_ID', '')
+                meta_client.phone_number_id = target_phone_number_id
 
         result = meta_client.request_phone_code(code_method=code_method)
 

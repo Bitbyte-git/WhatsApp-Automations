@@ -413,6 +413,53 @@ class MetaCloudAPIClient:
         except requests.exceptions.RequestException as e:
             return {'success': False, 'error': str(e)}
 
+    def add_phone_number_to_waba(self, phone_number, verified_name):
+        """
+        Attaches a client's new phone number to the Meta WhatsApp Business Account (WABA).
+        Returns the newly created Meta phone_number_id.
+        """
+        if not self.waba_id or not self.access_token:
+            return {'success': False, 'error': 'Missing Meta WABA ID or System User Access Token.'}
+
+        clean = phone_number.replace('+', '').replace(' ', '').replace('-', '')
+        cc = '91'
+        national_number = clean
+        if clean.startswith('91') and len(clean) > 10:
+            cc = '91'
+            national_number = clean[2:]
+        elif len(clean) == 10:
+            cc = '91'
+            national_number = clean
+
+        url = f"{self.base_url}/{self.waba_id}/phone_numbers"
+        payload = {
+            'cc': cc,
+            'phone_number': national_number,
+            'verified_name': verified_name or 'Business Partner'
+        }
+
+        try:
+            response = requests.post(url, json=payload, headers=self._get_headers(), timeout=15)
+            data = response.json()
+            if response.status_code in [200, 201] and data.get('id'):
+                return {'success': True, 'phone_number_id': str(data.get('id')), 'data': data}
+            
+            err_obj = data.get('error', {})
+            error_code = err_obj.get('code')
+            error_subcode = err_obj.get('error_subcode')
+            if error_code == 133010 or error_subcode == 133010 or 'already registered' in err_obj.get('message', '').lower():
+                return {
+                    'success': False,
+                    'already_registered_on_mobile': True,
+                    'error': 'This phone number is currently active on a mobile WhatsApp application. Please delete the account from your mobile WhatsApp app first, or use a fresh number.',
+                    'code': 133010,
+                    'data': data
+                }
+            error_msg = err_obj.get('error_user_msg') or err_obj.get('message') or 'Failed to add phone number to Meta WABA.'
+            return {'success': False, 'error': error_msg, 'code': error_code, 'data': data}
+        except requests.exceptions.RequestException as e:
+            return {'success': False, 'error': str(e)}
+
     def request_phone_code(self, code_method='SMS', language='en_US'):
         """
         Requests Meta to send a 6-digit SMS OTP to verify ownership of the phone number.
