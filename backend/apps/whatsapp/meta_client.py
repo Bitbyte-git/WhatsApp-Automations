@@ -413,6 +413,66 @@ class MetaCloudAPIClient:
         except requests.exceptions.RequestException as e:
             return {'success': False, 'error': str(e)}
 
+    def request_phone_code(self, code_method='SMS', language='en_US'):
+        """
+        Requests Meta to send a 6-digit SMS OTP to verify ownership of the phone number.
+        """
+        if not self.phone_number_id or not self.access_token:
+            return {'success': False, 'error': 'Missing Phone Number ID or Meta System User Token.'}
+
+        url = f"{self.base_url}/{self.phone_number_id}/request_code"
+        payload = {
+            'code_method': code_method.upper(),
+            'language': language
+        }
+        try:
+            response = requests.post(url, json=payload, headers=self._get_headers(), timeout=15)
+            data = response.json()
+            if response.status_code in [200, 201] and data.get('success'):
+                return {'success': True, 'data': data}
+            err_obj = data.get('error', {})
+            error_code = err_obj.get('code')
+            error_subcode = err_obj.get('error_subcode')
+            # 133010: Phone number already registered on mobile WhatsApp
+            if error_code == 133010 or error_subcode == 133010 or 'already registered' in err_obj.get('message', '').lower():
+                return {
+                    'success': False,
+                    'already_registered_on_mobile': True,
+                    'error': 'This phone number is already active on a mobile WhatsApp application. Please delete the account from your mobile WhatsApp app first, or use a fresh number.',
+                    'code': 133010,
+                    'data': data
+                }
+            error_msg = err_obj.get('error_user_msg') or err_obj.get('message') or 'Failed to request OTP from Meta'
+            return {'success': False, 'error': error_msg, 'code': error_code, 'data': data}
+        except requests.exceptions.RequestException as e:
+            return {'success': False, 'error': str(e)}
+
+    def register_phone_number(self, pin='123456', code=None):
+        """
+        Registers phone number with Meta Cloud API using the verified 6-digit OTP code and a two-step PIN.
+        """
+        if not self.phone_number_id or not self.access_token:
+            return {'success': False, 'error': 'Missing Phone Number ID or Meta System User Token.'}
+
+        url = f"{self.base_url}/{self.phone_number_id}/register"
+        payload = {
+            'messaging_product': 'whatsapp',
+            'pin': str(pin)
+        }
+        if code:
+            payload['code'] = str(code).strip()
+
+        try:
+            response = requests.post(url, json=payload, headers=self._get_headers(), timeout=15)
+            data = response.json()
+            if response.status_code in [200, 201] and data.get('success'):
+                return {'success': True, 'data': data}
+            err_obj = data.get('error', {})
+            error_msg = err_obj.get('error_user_msg') or err_obj.get('message') or 'Failed to register phone number with Meta'
+            return {'success': False, 'error': error_msg, 'code': err_obj.get('code'), 'data': data}
+        except requests.exceptions.RequestException as e:
+            return {'success': False, 'error': str(e)}
+
     def check_phone_number_status(self):
         """
         Inspects live phone number registration status, quality rating, and verified name from Meta.

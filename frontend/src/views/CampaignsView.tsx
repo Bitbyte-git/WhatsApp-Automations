@@ -379,14 +379,19 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
             </span>
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-2">
-            {user?.role === 'SUPERADMIN'
-              ? serviceType === 'UTILITY'
-                ? 'Utility Notification Studio'
-                : serviceType === 'SERVICE'
-                ? 'Service Reply Studio'
-                : 'Marketing Broadcast Studio'
-              : 'Broadcast Campaigns'}
+            {serviceType === 'UTILITY'
+              ? 'Utility Notifications'
+              : serviceType === 'SERVICE'
+              ? 'Customer Service Studio'
+              : 'Marketing Broadcasts'}
           </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            {serviceType === 'UTILITY'
+              ? 'Dispatch instant transactional alerts, invoices, order confirmations, and delivery updates (Meta rate: ~₹0.14/msg).'
+              : serviceType === 'SERVICE'
+              ? 'Handle 24-hour customer support replies and user-initiated inquiries (Meta rate: Free window / ~₹0.29/conv).'
+              : 'Broadcast high-converting promotional offers, festival sales, and product announcements with posters and CTA buttons.'}
+          </p>
         </div>
 
         {/* Live Status Pill */}
@@ -477,7 +482,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
               />
             </div>
 
-            {serviceType !== 'UTILITY' && (
+            {serviceType === 'MARKETING' && (
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   Header Text (Optional)
@@ -486,11 +491,7 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
                   type="text"
                   value={headerText}
                   onChange={(e) => setHeaderText(e.target.value)}
-                  placeholder={
-                    serviceType === 'SERVICE'
-                      ? 'e.g. BitByte Support Team'
-                      : 'e.g. Special Announcement'
-                  }
+                  placeholder="e.g. Special Festive Announcement"
                   className="w-full px-3.5 py-2 text-xs font-semibold border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54]"
                 />
               </div>
@@ -506,17 +507,17 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder={
                   serviceType === 'UTILITY'
-                    ? 'Type your Utility update here (e.g. Payment confirmed, Invoice generated, Project update — NO promotional offers)...'
+                    ? 'Type your Utility update here (e.g. Payment confirmed, Invoice generated, Order dispatched — NO promotional offers)...'
                     : serviceType === 'SERVICE'
-                    ? 'Type your 24h customer reply here (Free tier — works when customer messaged first)...'
+                    ? 'Type your customer care resolution here (Free tier — works within 24h of customer message)...'
                     : 'Type your WhatsApp marketing broadcast message here...'
                 }
                 className="w-full p-3.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-[#075E54] leading-relaxed text-slate-800"
               />
             </div>
 
-            {/* Buttons Builder (hidden for text-only Utility template) */}
-            {serviceType !== 'UTILITY' && (
+            {/* Buttons Builder (ONLY for Marketing Broadcasts) */}
+            {serviceType === 'MARKETING' && (
               <div className="space-y-3 pt-2">
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                   Action Buttons (Optional, up to 3)
@@ -562,8 +563,8 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
             )}
           </div>
 
-          {/* ── Marketing / Service Image Upload Section (hidden for text-only Utility template) ── */}
-          {serviceType !== 'UTILITY' && (
+          {/* ── Marketing Image Upload Section (ONLY for Marketing broadcasts) ── */}
+          {serviceType === 'MARKETING' && (
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-2">

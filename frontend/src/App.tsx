@@ -77,7 +77,10 @@ const ClientDashboardApp: React.FC = () => {
   return (
     <ClientLayout currentTab={currentTab} setCurrentTab={setCurrentTab}>
       {currentTab === 'overview' && <ClientOverviewView onNavigate={setCurrentTab} />}
-      {currentTab === 'campaigns' && <CampaignsView initialCategory="MARKETING" onNavigate={setCurrentTab} />}
+      {(currentTab === 'campaigns' || currentTab === 'marketing') && <CampaignsView initialCategory="MARKETING" onNavigate={setCurrentTab} />}
+      {currentTab === 'utility' && <CampaignsView initialCategory="UTILITY" onNavigate={setCurrentTab} />}
+      {currentTab === 'service' && <CampaignsView initialCategory="SERVICE" onNavigate={setCurrentTab} />}
+      {currentTab === 'chatbot' && <ChatbotView />}
       {currentTab === 'inbox' && <InboxView />}
       {currentTab === 'message-history' && <MessageHistoryView />}
       {currentTab === 'contacts' && <ContactsView />}
@@ -109,16 +112,10 @@ export const AppContent: React.FC = () => {
         <Route path="/" element={<LandingView />} />
 
         {/* Dedicated Separate Login Page */}
-        <Route
-          path="/login"
-          element={user ? <Navigate to={homeRedirect} replace /> : <LoginView />}
-        />
+        <Route path="/login" element={<LoginView />} />
 
         {/* Dedicated Separate Register Page */}
-        <Route
-          path="/register"
-          element={user ? <Navigate to={homeRedirect} replace /> : <RegisterView />}
-        />
+        <Route path="/register" element={<RegisterView />} />
 
         {/* Separate Role-Based Dashboards */}
         <Route path="/admin/dashboard" element={<AdminDashboardApp />} />

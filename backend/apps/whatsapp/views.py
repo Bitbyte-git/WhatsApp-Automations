@@ -67,6 +67,131 @@ class WhatsAppAccountViewSet(viewsets.ModelViewSet):
         else:
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=False, methods=['post'], url_path='request_otp')
+    def request_otp(self, request):
+        """
+        Dispatches a 6-digit SMS/Voice OTP via Meta Cloud API to verify and onboard a client's WhatsApp number.
+        Returns friendly guidance if phone is active on mobile WhatsApp (Meta error 133010).
+        """
+        phone_number = request.data.get('phone_number', '').strip()
+        business_name = request.data.get('business_name', '').strip()
+        code_method = request.data.get('code_method', 'SMS').upper()
+        phone_number_id = request.data.get('phone_number_id', '').strip()
+
+        if not phone_number:
+            return Response({'error': 'Phone number is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        clean_phone = phone_number.replace(' ', '').replace('-', '')
+        if not clean_phone.startswith('+') and len(clean_phone) == 10:
+            clean_phone = '+91' + clean_phone
+
+        user = request.user
+        account = None
+        if user.client:
+            account = WhatsAppAccount.objects.filter(client=user.client).first()
+
+        target_phone_number_id = phone_number_id or (account.phone_number_id if account else None) or getattr(settings, 'META_PHONE_NUMBER_ID', '')
+        access_token = (account.access_token if account and account.access_token else None) or getattr(settings, 'META_SYSTEM_USER_TOKEN', '')
+
+        meta_client = MetaCloudAPIClient(
+            phone_number_id=target_phone_number_id,
+            access_token=access_token,
+            waba_id=getattr(settings, 'META_WABA_ID', '')
+        )
+
+        result = meta_client.request_phone_code(code_method=code_method)
+
+        if result.get('success'):
+            return Response({
+                'success': True,
+                'message': f'Verification OTP sent via {code_method} to {clean_phone}. Please enter the 6-digit code.',
+                'phone_number': clean_phone,
+                'phone_number_id': target_phone_number_id
+            })
+
+        if result.get('already_registered_on_mobile'):
+            return Response({
+                'success': False,
+                'already_registered_on_mobile': True,
+                'error': result.get('error'),
+                'instruction': 'This number is currently active on your mobile WhatsApp app. To connect to Cloud API, open WhatsApp on your phone -> Settings -> Account -> Delete my account. Or use a fresh SIM number.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'success': False,
+            'error': result.get('error', 'Failed to request OTP from Meta Cloud API.')
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['post'], url_path='verify_otp')
+    def verify_otp(self, request):
+        """
+        Submits the 6-digit OTP code to Meta Cloud API to verify and register the phone number.
+        Marks WhatsAppAccount as CONNECTED with Green quality.
+        """
+        phone_number = request.data.get('phone_number', '').strip()
+        code = request.data.get('code', '').strip()
+        pin = request.data.get('pin', '123456').strip()
+        business_name = request.data.get('business_name', '').strip()
+        phone_number_id = request.data.get('phone_number_id', '').strip()
+
+        if not code or len(code) != 6:
+            return Response({'error': 'Please provide the valid 6-digit verification code.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        clean_phone = phone_number.replace(' ', '').replace('-', '')
+        if not clean_phone.startswith('+') and len(clean_phone) == 10:
+            clean_phone = '+91' + clean_phone
+
+        user = request.user
+        account = None
+        if user.client:
+            account = WhatsAppAccount.objects.filter(client=user.client).first()
+
+        target_phone_number_id = phone_number_id or (account.phone_number_id if account else None) or getattr(settings, 'META_PHONE_NUMBER_ID', '')
+        access_token = (account.access_token if account and account.access_token else None) or getattr(settings, 'META_SYSTEM_USER_TOKEN', '')
+
+        meta_client = MetaCloudAPIClient(
+            phone_number_id=target_phone_number_id,
+            access_token=access_token,
+            waba_id=getattr(settings, 'META_WABA_ID', '')
+        )
+
+        result = meta_client.register_phone_number(pin=pin, code=code)
+
+        if result.get('success'):
+            if user.client:
+                account_obj, _ = WhatsAppAccount.objects.get_or_create(
+                    client=user.client,
+                    defaults={
+                        'business_name': business_name or user.client.name,
+                        'phone_number': clean_phone,
+                        'phone_number_id': target_phone_number_id or f"meta_{clean_phone}",
+                        'waba_id': getattr(settings, 'META_WABA_ID', 'default_waba'),
+                        'connection_status': 'CONNECTED',
+                        'quality_rating': 'GREEN',
+                        'is_default': True,
+                    }
+                )
+                account_obj.connection_status = 'CONNECTED'
+                account_obj.quality_rating = 'GREEN'
+                account_obj.phone_number = clean_phone
+                if business_name:
+                    account_obj.business_name = business_name
+                account_obj.is_default = True
+                account_obj.save()
+
+            return Response({
+                'success': True,
+                'message': f'WhatsApp Business number {clean_phone} connected successfully!',
+                'phone_number': clean_phone,
+                'quality_rating': 'GREEN',
+                'connection_status': 'CONNECTED'
+            })
+
+        return Response({
+            'success': False,
+            'error': result.get('error', 'Failed to verify OTP code with Meta.')
+        }, status=status.HTTP_400_BAD_REQUEST)
+
     @action(detail=False, methods=['get'])
     def meta_balance(self, request):
         """

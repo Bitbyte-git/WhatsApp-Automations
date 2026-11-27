@@ -10,16 +10,11 @@ import {
   Phone,
   ArrowRight,
   ArrowLeft,
-  CheckCircle2,
-  ShieldCheck,
-  ShoppingBag,
-  Shirt,
-  UtensilsCrossed,
-  Stethoscope,
-  Sparkles,
-  Star,
   Eye,
   EyeOff,
+  AlertCircle,
+  Loader2,
+  Sparkles,
 } from 'lucide-react';
 
 export const RegisterView: React.FC = () => {
@@ -72,231 +67,153 @@ export const RegisterView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col lg:flex-row font-sans selection:bg-emerald-500 selection:text-white">
-      {/* ================= LEFT SIDE: ENTERPRISE VALUE SHOWCASE ================= */}
-      <div className="lg:w-[50%] relative overflow-hidden bg-gradient-to-br from-[#064E3B] via-[#075E54] to-slate-950 p-8 sm:p-12 lg:p-16 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-emerald-900/40">
-        {/* Soft Ambient Radial Lights */}
-        <div className="absolute top-0 left-0 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-10 right-10 w-[500px] h-[500px] bg-[#25D366]/15 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen w-full bg-[#F8FBF9] text-slate-800 flex flex-col justify-between font-sans selection:bg-[#007A4D] selection:text-white relative overflow-hidden">
+      {/* Ambient Background Glow matching Landing Page */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-[#E8F7F0] to-transparent rounded-full blur-3xl -z-10 pointer-events-none" />
+      <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-[#19A974]/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
-        {/* Top Header */}
-        <div className="relative z-10 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#25D366] to-[#128C7E] flex items-center justify-center text-slate-950 font-black text-2xl shadow-xl shadow-emerald-950/50 group-hover:scale-105 transition-transform">
-              BB
-            </div>
-            <div>
-              <span className="text-xl font-black tracking-tight text-white flex items-center gap-1.5">
-                BitByte <span className="text-[#25D366]">Technologies</span>
-              </span>
-              <p className="text-[10px] uppercase font-bold tracking-widest text-emerald-300">
-                WhatsApp Business SaaS
-              </p>
-            </div>
-          </Link>
-
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-200/80 hover:text-white px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 backdrop-blur-md transition-all"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back to Home</span>
-          </Link>
-        </div>
-
-        {/* Center: Hero Pitch & Target Businesses */}
-        <div className="relative z-10 my-10 lg:my-0 space-y-7 max-w-xl">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-400/10 border border-emerald-400/20 text-emerald-300 text-xs font-bold backdrop-blur-md">
-            <Sparkles className="w-3.5 h-3.5 text-[#25D366]" />
-            <span>Join 50+ Growing Businesses in Tamil Nadu</span>
+      {/* Top Header Navigation */}
+      <header className="w-full max-w-6xl mx-auto px-6 py-6 flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-3 group">
+          <div className="w-10 h-10 rounded-xl bg-white shadow-sm border border-[#DCE9E2] flex items-center justify-center p-1.5 group-hover:scale-105 transition-transform">
+            <img src="/assets/Logo-Icon.png" alt="Infisq Logo" className="w-full h-full object-contain" />
           </div>
-
-          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-[1.15]">
-            Create your isolated{' '}
-            <span className="bg-gradient-to-r from-[#25D366] via-emerald-200 to-teal-300 bg-clip-text text-transparent">
-              WhatsApp Business Account.
-            </span>
-          </h1>
-
-          <p className="text-emerald-100/70 text-sm leading-relaxed">
-            Get your own dedicated business workspace. Your customer contacts, conversations, templates, and prepaid wallet are 100% private and protected.
-          </p>
-
-          {/* 4 Industries Pills */}
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            <div className="bg-slate-900/60 backdrop-blur-md border border-white/10 p-3.5 rounded-2xl flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center text-[#25D366]">
-                <ShoppingBag className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="font-bold text-white text-xs">Supermarkets</p>
-                <p className="text-[10px] text-slate-400">Weekend Offers & E-Bills</p>
-              </div>
-            </div>
-
-            <div className="bg-slate-900/60 backdrop-blur-md border border-white/10 p-3.5 rounded-2xl flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center text-[#25D366]">
-                <Shirt className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="font-bold text-white text-xs">Textile Shops</p>
-                <p className="text-[10px] text-slate-400">Festival Catalogs & Promos</p>
-              </div>
-            </div>
-
-            <div className="bg-slate-900/60 backdrop-blur-md border border-white/10 p-3.5 rounded-2xl flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center text-[#25D366]">
-                <UtensilsCrossed className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="font-bold text-white text-xs">Restaurants</p>
-                <p className="text-[10px] text-slate-400">Menu Cards & Bookings</p>
-              </div>
-            </div>
-
-            <div className="bg-slate-900/60 backdrop-blur-md border border-white/10 p-3.5 rounded-2xl flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center text-[#25D366]">
-                <Stethoscope className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="font-bold text-white text-xs">Medical & Clinics</p>
-                <p className="text-[10px] text-slate-400">Appointments & OTPs</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Pricing Highlight Pill */}
-          <div className="bg-emerald-950/80 border border-emerald-500/30 p-3.5 rounded-2xl flex items-center justify-between text-xs">
-            <span className="text-emerald-200 font-semibold">Service Messages Allowance:</span>
-            <span className="font-black text-[#25D366] bg-emerald-500/20 px-2.5 py-1 rounded-md">
-              1,000 Chats FREE / Month
-            </span>
-          </div>
-        </div>
-
-        {/* Bottom Social Proof */}
-        <div className="relative z-10 pt-6 border-t border-emerald-900/40 flex items-center justify-between text-xs text-emerald-200/70">
-          <div className="flex items-center gap-1.5">
-            <div className="flex text-amber-400">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="w-3.5 h-3.5 fill-current" />
-              ))}
-            </div>
-            <span className="font-bold text-white ml-1">Official Meta Rates</span>
-          </div>
-          <span>BitByte Technologies</span>
-        </div>
-      </div>
-
-      {/* ================= RIGHT SIDE: LUXURY REGISTRATION FORM ================= */}
-      <div className="lg:w-[50%] bg-slate-900 flex items-center justify-center p-6 sm:p-12 lg:p-16">
-        <div className="w-full max-w-lg space-y-6">
           <div>
-            <h2 className="text-3xl font-black text-white tracking-tight">
+            <span className="font-extrabold text-base text-slate-900 tracking-tight block leading-tight">
+              Infisq Innovations
+            </span>
+            <span className="text-[9px] font-bold tracking-widest text-[#007A4D] uppercase block">
+              Communicate • Automate • Grow
+            </span>
+          </div>
+        </Link>
+
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-[#007A4D] px-3.5 py-2 rounded-full bg-white border border-[#DCE9E2] shadow-xs hover:border-[#19A974] transition-all"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to Home</span>
+        </Link>
+      </header>
+
+      {/* Main Register Card (Centered, Clean, No Bloat) */}
+      <main className="w-full max-w-xl mx-auto px-6 my-auto py-8">
+        <div className="bg-white rounded-3xl border border-[#DCE9E2] p-8 sm:p-10 shadow-xl shadow-slate-900/5 relative">
+          {/* Header Title */}
+          <div className="text-center mb-8">
+            <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-[#E8F7F0] flex items-center justify-center text-[#007A4D]">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
               Register Your Business
-            </h2>
-            <p className="mt-2 text-xs font-semibold text-slate-400">
-              Fill in your business details to setup your WhatsApp tenant
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-2 font-medium">
+              Start broadcasting and automating on WhatsApp Cloud API
             </p>
           </div>
 
+          {/* Error Alert */}
           {error && (
-            <div className="p-4 rounded-2xl bg-rose-950/50 border border-rose-500/30 text-xs text-rose-300 font-medium">
-              {error}
+            <div className="mb-6 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2.5 animate-shake">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleRegister} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                Company / Shop Name
-              </label>
-              <div className="relative">
-                <Building className="w-4 h-4 text-slate-400 absolute left-4 top-3.5" />
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Salem Fresh Supermarket"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 text-sm bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-[#25D366] focus:ring-1 focus:ring-[#25D366] transition-all"
-                />
-              </div>
-            </div>
-
+          {/* Form */}
+          <form onSubmit={handleRegister} className="space-y-4" noValidate>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Contact Person Name
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Business / Company Name
                 </label>
                 <div className="relative">
-                  <User className="w-4 h-4 text-slate-400 absolute left-4 top-3.5" />
+                  <Building className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                    placeholder="Acme Retail Stores"
                     required
-                    placeholder="e.g. Senthilkumar S"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full pl-11 pr-4 py-2.5 text-sm bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-[#25D366] focus:ring-1 focus:ring-[#25D366] transition-all"
+                    className="w-full pl-10 pr-4 py-3 bg-[#F8FBF9] border border-[#DCE9E2] rounded-2xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#007A4D] focus:ring-4 focus:ring-[#007A4D]/10 transition-all font-medium"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                  WhatsApp Phone Number
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Your Full Name
                 </label>
                 <div className="relative">
-                  <Phone className="w-4 h-4 text-slate-400 absolute left-4 top-3.5" />
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
-                    type="tel"
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="John Doe"
                     required
-                    placeholder="+91 99444 95366"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    className="w-full pl-11 pr-4 py-2.5 text-sm bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-[#25D366] focus:ring-1 focus:ring-[#25D366] transition-all"
+                    className="w-full pl-10 pr-4 py-3 bg-[#F8FBF9] border border-[#DCE9E2] rounded-2xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#007A4D] focus:ring-4 focus:ring-[#007A4D]/10 transition-all font-medium"
                   />
                 </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                Business Email Address
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-4 top-3.5" />
-                <input
-                  type="email"
-                  required
-                  placeholder="name@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 text-sm bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-[#25D366] focus:ring-1 focus:ring-[#25D366] transition-all"
-                />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Create Password *
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Company Email
                 </label>
                 <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-4 top-3.5" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="admin@acme.com"
+                    required
+                    className="w-full pl-10 pr-4 py-3 bg-[#F8FBF9] border border-[#DCE9E2] rounded-2xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#007A4D] focus:ring-4 focus:ring-[#007A4D]/10 transition-all font-medium"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="+91 98765 43210"
+                    required
+                    className="w-full pl-10 pr-4 py-3 bg-[#F8FBF9] border border-[#DCE9E2] rounded-2xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#007A4D] focus:ring-4 focus:ring-[#007A4D]/10 transition-all font-medium"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    required
-                    placeholder="Min 6 characters"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-11 pr-10 py-2.5 text-sm bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-[#25D366] focus:ring-1 focus:ring-[#25D366] transition-all"
+                    placeholder="Min 6 characters"
+                    required
+                    className="w-full pl-10 pr-11 py-3 bg-[#F8FBF9] border border-[#DCE9E2] rounded-2xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#007A4D] focus:ring-4 focus:ring-[#007A4D]/10 transition-all font-medium"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-3.5 text-slate-400 hover:text-white transition-colors cursor-pointer"
-                    title={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -304,24 +221,23 @@ export const RegisterView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Confirm Password *
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Confirm Password
                 </label>
                 <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-4 top-3.5" />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
-                    required
-                    placeholder="Re-type password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full pl-11 pr-10 py-2.5 text-sm bg-slate-800/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-[#25D366] focus:ring-1 focus:ring-[#25D366] transition-all"
+                    placeholder="Repeat password"
+                    required
+                    className="w-full pl-10 pr-11 py-3 bg-[#F8FBF9] border border-[#DCE9E2] rounded-2xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#007A4D] focus:ring-4 focus:ring-[#007A4D]/10 transition-all font-medium"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3.5 top-3.5 text-slate-400 hover:text-white transition-colors cursor-pointer"
-                    title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
                   >
                     {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -332,33 +248,41 @@ export const RegisterView: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-2 py-3.5 px-5 rounded-xl bg-gradient-to-r from-[#075E54] to-[#25D366] hover:from-[#064E3B] hover:to-[#128C7E] text-white font-black text-sm tracking-wide shadow-xl shadow-emerald-950/50 hover:shadow-2xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+              className="w-full mt-4 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#007A4D] to-[#19A974] hover:from-[#005C3A] hover:to-[#007A4D] text-white font-bold text-sm shadow-lg shadow-[#007A4D]/20 hover:shadow-xl hover:shadow-[#007A4D]/30 transition-all flex items-center justify-center gap-2 group disabled:opacity-60 cursor-pointer"
             >
               {loading ? (
-                <span>Setting Up Tenant Workspace...</span>
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Creating Account...</span>
+                </>
               ) : (
                 <>
-                  <span>Complete Business Registration</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <span>Create Account & Get Started</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </>
               )}
             </button>
           </form>
 
-          {/* Bottom Switch to Login */}
-          <div className="pt-5 border-t border-slate-800 text-center">
-            <p className="text-xs text-slate-400">
+          {/* Login Link */}
+          <div className="mt-8 pt-6 border-t border-[#DCE9E2] text-center">
+            <p className="text-xs text-slate-500 font-medium">
               Already have an account?{' '}
               <Link
                 to="/login"
-                className="font-bold text-[#25D366] hover:text-emerald-300 transition-colors ml-1"
+                className="font-bold text-[#007A4D] hover:text-[#005C3A] underline underline-offset-2 ml-1"
               >
                 Sign In here →
               </Link>
             </p>
           </div>
         </div>
-      </div>
+      </main>
+
+      {/* Clean Footer */}
+      <footer className="w-full py-4 text-center text-xs text-slate-400 font-medium">
+        © 2026 Infisq Innovations. All rights reserved.
+      </footer>
     </div>
   );
 };

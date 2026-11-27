@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Smartphone,
-  Upload,
+  ShieldCheck,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
+  Upload,
   FileText,
   Users,
   Send,
@@ -11,6 +13,9 @@ import {
   X,
   PhoneCall,
   Sparkles,
+  ArrowRight,
+  RefreshCw,
+  Info,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -18,7 +23,7 @@ import { useAuth } from '../context/AuthContext';
 interface ConnectWhatsAppModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onNavigate: (tab: string) => void;
+  onNavigate?: (tab: string) => void;
   onSuccess?: () => void;
 }
 
@@ -29,51 +34,145 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
   onSuccess,
 }) => {
   const { user, activeTenantId } = useAuth();
-  const [activeTab, setActiveTab] = useState<'sync' | 'file' | 'paste'>('sync');
+  const [activeTab, setActiveTab] = useState<'otp' | 'contacts'>('otp');
 
-  // Sync state
+  // WhatsApp OTP Registration State
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [businessName, setBusinessName] = useState(user?.client_name || user?.full_name || '');
+  const [codeMethod, setCodeMethod] = useState<'SMS' | 'VOICE'>('SMS');
+  const [otpCode, setOtpCode] = useState('');
+  const [twoStepPin, setTwoStepPin] = useState('123456');
+
+  // Loading & Feedback
   const [loading, setLoading] = useState(false);
-  const [syncedCount, setSyncedCount] = useState<number | null>(null);
-  const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [isMobileConflict, setIsMobileConflict] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
 
-  // Paste state
+  // Contacts Tab State
+  const [contactsSubTab, setContactsSubTab] = useState<'sync' | 'file' | 'paste'>('sync');
   const [pasteText, setPasteText] = useState('');
+  const [syncedCount, setSyncedCount] = useState<number | null>(null);
+
+  // Countdown timer for OTP resend
+  useEffect(() => {
+    let timer: any;
+    if (resendCooldown > 0) {
+      timer = setInterval(() => setResendCooldown((prev) => prev - 1), 1000);
+    }
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   if (!isOpen) return null;
 
-  // 1-Click Device Sync
-  const handleDeviceSync = async () => {
-    setLoading(true);
-    setSuccessMsg('');
+  // Step 1: Request OTP from Meta
+  const handleRequestOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setErrorMsg('');
+    setIsMobileConflict(false);
+    setSuccessMsg('');
+
+    let cleaned = phoneNumber.replace(/[^0-9+]/g, '');
+    if (!cleaned) {
+      setErrorMsg('Please enter your WhatsApp phone number.');
+      return;
+    }
+    if (!cleaned.startsWith('+') && cleaned.length === 10) {
+      cleaned = '+91' + cleaned;
+    }
+
+    setLoading(true);
     try {
-      const res = await api.syncWhatsAppDevice({ client_id: activeTenantId });
+      const res = await api.requestWhatsAppOtp({
+        phone_number: cleaned,
+        business_name: businessName,
+        code_method: codeMethod,
+      });
+
       if (res?.success) {
-        setSyncedCount(res.total_contacts || 0);
-        setSuccessMsg(
-          res.message ||
-            `WhatsApp device verified! ${res.total_contacts || 0} real contacts ready.`
-        );
-        if (onSuccess) onSuccess();
+        setPhoneNumber(cleaned);
+        setStep(2);
+        setResendCooldown(30);
+        setSuccessMsg(res.message || `6-digit OTP code sent via ${codeMethod} to ${cleaned}`);
       } else {
-        setErrorMsg(res?.error || 'Failed to connect WhatsApp device.');
+        if (res?.already_registered_on_mobile || res?.code === 133010) {
+          setIsMobileConflict(true);
+        }
+        setErrorMsg(res?.error || 'Failed to request OTP from Meta.');
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Connection error. Please try again.');
+      if (err?.already_registered_on_mobile || err?.message?.includes('133010') || err?.message?.includes('already active')) {
+        setIsMobileConflict(true);
+      }
+      setErrorMsg(err.message || 'Error communicating with Meta Cloud API.');
     } finally {
       setLoading(false);
     }
   };
 
-  // VCF / CSV File parser
+  // Step 2: Verify OTP with Meta
+  const handleVerifyOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!otpCode || otpCode.trim().length !== 6) {
+      setErrorMsg('Please enter the 6-digit verification code.');
+      return;
+    }
+
+    setErrorMsg('');
+    setIsMobileConflict(false);
+    setLoading(true);
+
+    try {
+      const res = await api.verifyWhatsAppOtp({
+        phone_number: phoneNumber,
+        code: otpCode.trim(),
+        pin: twoStepPin.trim() || '123456',
+        business_name: businessName,
+      });
+
+      if (res?.success) {
+        setStep(3);
+        setSuccessMsg(res.message || 'WhatsApp number connected successfully!');
+        if (onSuccess) onSuccess();
+      } else {
+        setErrorMsg(res?.error || 'Verification failed. Please check the code.');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Verification failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Contact Sync Handlers
+  const handleDeviceSync = async () => {
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const res = await api.syncWhatsAppDevice({ client_id: activeTenantId });
+      if (res?.success) {
+        setSyncedCount(res.total_contacts || 0);
+        setSuccessMsg(res.message || `WhatsApp device verified! ${res.total_contacts || 0} contacts ready.`);
+        if (onSuccess) onSuccess();
+      } else {
+        setErrorMsg(res?.error || 'Failed to sync WhatsApp contacts.');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Device sync error.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setLoading(true);
-    setSuccessMsg('');
     setErrorMsg('');
+    setSuccessMsg('');
 
     const reader = new FileReader();
     reader.onload = async (event) => {
@@ -82,7 +181,6 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
         const parsedContacts: { name: string; phone_number: string }[] = [];
 
         if (file.name.toLowerCase().endsWith('.vcf')) {
-          // Parse vCard format (Standard Android/iPhone phonebook export)
           const cards = text.split(/END:VCARD/i);
           for (const card of cards) {
             if (!card.trim()) continue;
@@ -91,372 +189,554 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
             const fnMatch = card.match(/FN(?:;[^:]*)?:([^\r\n]+)/i);
             if (fnMatch) name = fnMatch[1].trim();
             const telMatch = card.match(/TEL(?:;[^:]*)?:([^\r\n]+)/i);
-            if (telMatch) {
-              phone = telMatch[1].trim().replace(/[^0-9+]/g, '');
-            }
+            if (telMatch) phone = telMatch[1].trim().replace(/[^0-9+]/g, '');
             if (phone && phone.length >= 10) {
-              if (!phone.startsWith('+') && phone.length === 10) {
-                phone = '+91' + phone;
-              }
-              parsedContacts.push({
-                name: name || `Contact ${phone.slice(-4)}`,
-                phone_number: phone,
-              });
+              if (!phone.startsWith('+') && phone.length === 10) phone = '+91' + phone;
+              parsedContacts.push({ name: name || 'Contact', phone_number: phone });
             }
           }
         } else {
-          // Parse CSV / TXT format
-          const lines = text.split(/\r?\n/);
+          const lines = text.split(/\r\n|\n/);
           for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || trimmed.toLowerCase().includes('phone') || trimmed.toLowerCase().includes('name')) {
-              continue;
-            }
-            const parts = trimmed.split(/[,;\t]/);
-            if (parts.length >= 2) {
-              const name = parts[0].trim();
-              let phone = parts[1].trim().replace(/[^0-9+]/g, '');
-              if (phone.length >= 10) {
+            const parts = line.split(/[,\t]/);
+            if (parts.length >= 1) {
+              let phone = parts[0].trim().replace(/[^0-9+]/g, '');
+              let name = parts[1]?.trim() || 'Contact';
+              if (!phone && parts[1]) {
+                phone = parts[1].trim().replace(/[^0-9+]/g, '');
+                name = parts[0]?.trim() || 'Contact';
+              }
+              if (phone && phone.length >= 10) {
                 if (!phone.startsWith('+') && phone.length === 10) phone = '+91' + phone;
                 parsedContacts.push({ name, phone_number: phone });
-              }
-            } else if (parts.length === 1) {
-              let phone = parts[0].trim().replace(/[^0-9+]/g, '');
-              if (phone.length >= 10) {
-                if (!phone.startsWith('+') && phone.length === 10) phone = '+91' + phone;
-                parsedContacts.push({ name: `Contact ${phone.slice(-4)}`, phone_number: phone });
               }
             }
           }
         }
 
         if (parsedContacts.length === 0) {
-          setErrorMsg('No valid phone numbers found in file. Please check format.');
+          setErrorMsg('No valid phone numbers found in file.');
           setLoading(false);
           return;
         }
 
-        // Send to backend batch_import
-        const res = await api.batchImportContacts({
-          contacts: parsedContacts,
-          client_id: activeTenantId,
-        });
-
-        const count = res?.created !== undefined ? (res.created + res.updated) : parsedContacts.length;
-        setSyncedCount(count);
-        setSuccessMsg(`✓ Successfully imported ${count} real contacts from ${file.name}!`);
-        if (onSuccess) onSuccess();
+        const res = await api.batchImportContacts({ contacts: parsedContacts });
+        if (res?.success) {
+          setSyncedCount(res.imported_count || parsedContacts.length);
+          setSuccessMsg(`Imported ${res.imported_count || parsedContacts.length} contacts!`);
+          if (onSuccess) onSuccess();
+        } else {
+          setErrorMsg(res?.error || 'Import failed.');
+        }
       } catch (err: any) {
-        setErrorMsg(err.message || 'Failed to parse and upload contact file.');
+        setErrorMsg('Error parsing file: ' + err.message);
       } finally {
         setLoading(false);
       }
     };
-
-    reader.onerror = () => {
-      setErrorMsg('Failed to read the file.');
-      setLoading(false);
-    };
-
     reader.readAsText(file);
   };
 
-  // Paste numbers import
-  const handlePasteImport = async () => {
-    if (!pasteText.trim()) {
-      setErrorMsg('Please paste phone numbers.');
+  const handlePasteSubmit = async () => {
+    if (!pasteText.trim()) return;
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    const lines = pasteText.split(/\r\n|\n/);
+    const parsedContacts: { name: string; phone_number: string }[] = [];
+
+    for (const line of lines) {
+      const parts = line.split(/[,\t-]/);
+      let phone = '';
+      let name = 'Client Contact';
+      for (const p of parts) {
+        const clean = p.trim().replace(/[^0-9+]/g, '');
+        if (clean.length >= 10) {
+          phone = clean;
+          break;
+        }
+      }
+      if (phone) {
+        if (!phone.startsWith('+') && phone.length === 10) phone = '+91' + phone;
+        parsedContacts.push({ name, phone_number: phone });
+      }
+    }
+
+    if (parsedContacts.length === 0) {
+      setErrorMsg('No valid phone numbers detected in pasted text.');
+      setLoading(false);
       return;
     }
 
-    setLoading(true);
-    setSuccessMsg('');
-    setErrorMsg('');
-
     try {
-      const lines = pasteText.split(/\r?\n/);
-      const parsedContacts: { name: string; phone_number: string }[] = [];
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-        const parts = trimmed.split(/[,;\t]/);
-        if (parts.length >= 2) {
-          const name = parts[0].trim();
-          let phone = parts[1].trim().replace(/[^0-9+]/g, '');
-          if (phone.length >= 10) {
-            if (!phone.startsWith('+') && phone.length === 10) phone = '+91' + phone;
-            parsedContacts.push({ name, phone_number: phone });
-          }
-        } else {
-          let phone = trimmed.replace(/[^0-9+]/g, '');
-          if (phone.length >= 10) {
-            if (!phone.startsWith('+') && phone.length === 10) phone = '+91' + phone;
-            parsedContacts.push({ name: `Customer ${phone.slice(-4)}`, phone_number: phone });
-          }
-        }
+      const res = await api.batchImportContacts({ contacts: parsedContacts });
+      if (res?.success) {
+        setSyncedCount(res.imported_count || parsedContacts.length);
+        setSuccessMsg(`Successfully imported ${res.imported_count || parsedContacts.length} numbers!`);
+        setPasteText('');
+        if (onSuccess) onSuccess();
+      } else {
+        setErrorMsg(res?.error || 'Failed to import numbers.');
       }
-
-      if (parsedContacts.length === 0) {
-        setErrorMsg('No valid 10-digit phone numbers detected.');
-        setLoading(false);
-        return;
-      }
-
-      const res = await api.batchImportContacts({
-        contacts: parsedContacts,
-        client_id: activeTenantId,
-      });
-
-      const count = res?.created !== undefined ? (res.created + res.updated) : parsedContacts.length;
-      setSyncedCount(count);
-      setSuccessMsg(`✓ Successfully saved ${count} contacts!`);
-      setPasteText('');
-      if (onSuccess) onSuccess();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to import contacts.');
+      setErrorMsg(err.message || 'Error processing numbers.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-xl overflow-hidden">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#075E54] to-[#128C7E] px-6 py-5 text-white flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
+        {/* Modal Top Header */}
+        <div className="px-6 py-5 border-b border-slate-100 bg-linear-to-r from-emerald-50/70 via-white to-white flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-md">
-              <Smartphone className="w-5 h-5 text-emerald-300" />
+            <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
+              <Smartphone className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base tracking-tight">Connect WhatsApp & Sync Contacts</h3>
-              <p className="text-xs text-emerald-100">
-                Sync Naveen's 500+ phonebook contacts to blast marketing messages
-              </p>
+              <h3 className="text-base font-black text-slate-900">Connect WhatsApp Number</h3>
+              <p className="text-xs text-slate-500 font-medium">Official Meta WhatsApp Cloud API Integration</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-emerald-100 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Content Body */}
-        <div className="p-6 space-y-5">
-          {/* Active Tenant / Registered Device Card */}
-          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold">
-                📱
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Client WhatsApp Account
-                </p>
-                <p className="text-sm font-bold text-slate-800">
-                  BitByte Official (+91 99444 95366)
-                </p>
-              </div>
-            </div>
-            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse" />
-              Meta Cloud API Ready
-            </span>
-          </div>
+        {/* Top Mode Tabs */}
+        <div className="px-6 pt-4 flex space-x-2 border-b border-slate-100 bg-slate-50/50">
+          <button
+            onClick={() => setActiveTab('otp')}
+            className={`pb-3 px-3 text-xs font-bold transition-all relative flex items-center space-x-2 ${
+              activeTab === 'otp'
+                ? 'text-emerald-700 border-b-2 border-emerald-600'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>Connect Number (OTP)</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('contacts')}
+            className={`pb-3 px-3 text-xs font-bold transition-all relative flex items-center space-x-2 ${
+              activeTab === 'contacts'
+                ? 'text-emerald-700 border-b-2 border-emerald-600'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>Import Contacts</span>
+          </button>
+        </div>
 
-          {/* Tab Selector */}
-          <div className="flex border-b border-slate-200">
-            <button
-              onClick={() => setActiveTab('sync')}
-              className={`flex-1 pb-3 text-xs font-bold transition-all border-b-2 flex items-center justify-center space-x-1.5 ${
-                activeTab === 'sync'
-                  ? 'border-[#075E54] text-[#075E54]'
-                  : 'border-transparent text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              <Smartphone className="w-4 h-4" />
-              <span>1-Click Device Sync</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('file')}
-              className={`flex-1 pb-3 text-xs font-bold transition-all border-b-2 flex items-center justify-center space-x-1.5 ${
-                activeTab === 'file'
-                  ? 'border-[#075E54] text-[#075E54]'
-                  : 'border-transparent text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              <Upload className="w-4 h-4" />
-              <span>Import Phonebook (.vcf / .csv)</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('paste')}
-              className={`flex-1 pb-3 text-xs font-bold transition-all border-b-2 flex items-center justify-center space-x-1.5 ${
-                activeTab === 'paste'
-                  ? 'border-[#075E54] text-[#075E54]'
-                  : 'border-transparent text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              <span>Paste Numbers</span>
-            </button>
-          </div>
-
-          {/* Success Message Banner */}
-          {successMsg && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-start space-x-3 text-emerald-800 animate-in fade-in">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-              <div className="flex-1 text-xs">
-                <p className="font-bold text-sm mb-1">{successMsg}</p>
-                <p className="text-emerald-700">
-                  All these real contacts are now saved in your account. You can send marketing offers to all of them immediately!
-                </p>
-                <div className="mt-3 flex items-center space-x-2">
-                  <button
-                    onClick={() => {
-                      onClose();
-                      onNavigate('marketing');
-                    }}
-                    className="inline-flex items-center px-3 py-1.5 bg-[#075E54] hover:bg-[#128C7E] text-white rounded-lg text-xs font-bold shadow-sm transition-all"
+        {/* Modal Body */}
+        <div className="p-6 overflow-y-auto flex-1">
+          {/* TAB 1: WhatsApp Number OTP Connection */}
+          {activeTab === 'otp' && (
+            <div>
+              {/* Progress Steps */}
+              <div className="flex items-center justify-between mb-6 px-2">
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${
+                      step >= 1 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'
+                    }`}
                   >
-                    <Send className="w-3.5 h-3.5 mr-1.5" />
-                    Go to Marketing & Send Message
-                  </button>
-                  <button
-                    onClick={() => {
-                      onClose();
-                      onNavigate('contacts');
-                    }}
-                    className="inline-flex items-center px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 rounded-lg text-xs font-semibold transition-all"
+                    1
+                  </span>
+                  <span className={`text-xs font-bold ${step >= 1 ? 'text-slate-900' : 'text-slate-400'}`}>
+                    Number & Rules
+                  </span>
+                </div>
+                <div className={`h-0.5 flex-1 mx-3 ${step >= 2 ? 'bg-emerald-500' : 'bg-slate-200'}`} />
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${
+                      step >= 2 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'
+                    }`}
                   >
-                    <Users className="w-3.5 h-3.5 mr-1.5" />
-                    View Contacts List
-                  </button>
+                    2
+                  </span>
+                  <span className={`text-xs font-bold ${step >= 2 ? 'text-slate-900' : 'text-slate-400'}`}>
+                    Verify OTP
+                  </span>
+                </div>
+                <div className={`h-0.5 flex-1 mx-3 ${step >= 3 ? 'bg-emerald-500' : 'bg-slate-200'}`} />
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${
+                      step === 3 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'
+                    }`}
+                  >
+                    3
+                  </span>
+                  <span className={`text-xs font-bold ${step === 3 ? 'text-slate-900' : 'text-slate-400'}`}>
+                    Connected
+                  </span>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* Error Message Banner */}
-          {errorMsg && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3.5 flex items-center space-x-2.5 text-red-700 text-xs font-medium">
-              <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
+              {/* STEP 1: Phone Input & Meta Policy Guidance */}
+              {step === 1 && (
+                <form onSubmit={handleRequestOtp} className="space-y-4">
+                  {/* Meta Policy Warning Card */}
+                  <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-900">
+                    <div className="flex items-start space-x-2.5">
+                      <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="text-xs space-y-1.5 leading-relaxed">
+                        <p className="font-extrabold text-amber-950">Important Meta Cloud API Rule:</p>
+                        <p>
+                          1. <strong>Fresh SIM Number (Recommended):</strong> Puthiya SIM number use panninaal direct-aa OTP vandhu connect aaidum.
+                        </p>
+                        <p>
+                          2. <strong>Existing WhatsApp Number:</strong> Indha number-la mobile WhatsApp app run aanaal Meta reject pannum (Error 133010). 
+                          Please mobile WhatsApp app open panni: <br />
+                          <span className="font-semibold text-amber-800">Settings ➔ Account ➔ "Delete my account"</span> kuduthutu inga number podunga.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
-          {/* TAB 1: 1-Click Device Sync */}
-          {activeTab === 'sync' && (
-            <div className="space-y-4">
-              <div className="p-4 bg-emerald-50/60 border border-emerald-100 rounded-xl text-xs text-emerald-900 leading-relaxed">
-                <p className="font-bold mb-1 flex items-center">
-                  <Sparkles className="w-4 h-4 mr-1.5 text-emerald-600" />
-                  Auto-Sync WhatsApp Registered Device Contacts
-                </p>
-                Verify and connect BitByte Official WhatsApp account (+91 99444 95366) to load all verified customer contacts into your database.
-              </div>
+                  {/* Business Name */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Business Display Name
+                    </label>
+                    <input
+                      type="text"
+                      value={businessName}
+                      onChange={(e) => setBusinessName(e.target.value)}
+                      placeholder="e.g. AK Shop / BitByte Technologies"
+                      required
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 outline-hidden transition-all"
+                    />
+                  </div>
 
-              <button
-                onClick={handleDeviceSync}
-                disabled={loading}
-                className="w-full py-3 bg-[#075E54] hover:bg-[#128C7E] disabled:bg-slate-300 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-900/10 transition-all flex items-center justify-center space-x-2"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Syncing WhatsApp Contacts...</span>
-                  </>
-                ) : (
-                  <>
-                    <Smartphone className="w-4 h-4" />
-                    <span>⚡ Sync My WhatsApp Contacts Now</span>
-                  </>
-                )}
-              </button>
-            </div>
-          )}
+                  {/* Phone Number */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      WhatsApp Phone Number (with Country Code)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        placeholder="+91 98765 43210"
+                        required
+                        className="w-full pl-3.5 pr-24 py-2.5 rounded-xl border border-slate-200 text-sm font-bold font-mono focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 outline-hidden transition-all"
+                      />
+                      <div className="absolute right-2 top-2 flex items-center space-x-1">
+                        <button
+                          type="button"
+                          onClick={() => setCodeMethod('SMS')}
+                          className={`px-2 py-1 rounded text-[10px] font-extrabold transition-all ${
+                            codeMethod === 'SMS'
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          SMS
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCodeMethod('VOICE')}
+                          className={`px-2 py-1 rounded text-[10px] font-extrabold transition-all ${
+                            codeMethod === 'VOICE'
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          CALL
+                        </button>
+                      </div>
+                    </div>
+                  </div>
 
-          {/* TAB 2: File Upload (VCF / CSV / Excel) */}
-          {activeTab === 'file' && (
-            <div className="space-y-4">
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 space-y-1">
-                <p className="font-bold text-slate-800">📱 How to export 500+ contacts from your phone:</p>
-                <p>1. Open your Mobile <strong>Contacts App</strong></p>
-                <p>2. Tap <strong>Settings ➡️ Export Contacts ➡️ to .vcf file</strong> (takes 5 seconds)</p>
-                <p>3. Drop that <code>.vcf</code> or <code>.csv</code> file below to instantly load all contacts!</p>
-              </div>
+                  {/* Mobile Conflict Alert */}
+                  {isMobileConflict && (
+                    <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs">
+                      <div className="flex items-start space-x-2">
+                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-bold">Number Already Active on Mobile WhatsApp!</p>
+                          <p className="text-rose-700 mt-1">
+                            Meta Error 133010: Indha number mobile WhatsApp app-la register aagi irukku.
+                            Mobile WhatsApp app open panni <strong>Settings ➔ Account ➔ Delete my account</strong> pannunga, or pudhu fresh SIM number use pannunga.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-              <label className="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-emerald-50/30 transition-all group">
-                <input
-                  type="file"
-                  accept=".vcf,.csv,.txt"
-                  onChange={handleFileUpload}
-                  disabled={loading}
-                  className="hidden"
-                />
-                <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-[#075E54] mb-3 group-hover:scale-110 transition-transform">
-                  <Upload className="w-6 h-6" />
-                </div>
-                <p className="text-sm font-bold text-slate-700">Click to upload Phonebook File</p>
-                <p className="text-xs text-slate-400 mt-1">Supports .VCF (vCard), .CSV, or .TXT files</p>
-              </label>
+                  {errorMsg && !isMobileConflict && (
+                    <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center space-x-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{errorMsg}</span>
+                    </div>
+                  )}
 
-              {loading && (
-                <div className="flex items-center justify-center space-x-2 text-xs font-semibold text-emerald-700">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Parsing and saving contacts...</span>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Requesting Meta OTP...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Send 6-Digit Meta OTP</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
+
+              {/* STEP 2: Verify 6-Digit OTP */}
+              {step === 2 && (
+                <form onSubmit={handleVerifyOtp} className="space-y-4">
+                  <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-emerald-900 text-xs flex items-center justify-between">
+                    <div>
+                      <p className="font-bold">OTP sent to {phoneNumber}</p>
+                      <p className="text-emerald-700">Enter the 6-digit code received via {codeMethod}.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setStep(1)}
+                      className="text-[11px] font-bold text-emerald-800 underline hover:text-emerald-950"
+                    >
+                      Change Number
+                    </button>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 text-center">
+                      6-Digit Verification Code
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="• • • • • •"
+                      required
+                      autoFocus
+                      className="w-full text-center tracking-[1em] text-2xl font-black font-mono py-3 rounded-2xl border-2 border-emerald-500/40 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/15 outline-hidden transition-all text-slate-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">
+                      Two-Step Verification PIN (Meta Security)
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={twoStepPin}
+                      onChange={(e) => setTwoStepPin(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="123456"
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-mono font-bold text-slate-700 focus:border-emerald-600 outline-hidden"
+                    />
+                  </div>
+
+                  {errorMsg && (
+                    <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center space-x-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{errorMsg}</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading || otpCode.length !== 6}
+                    className="w-full py-3 rounded-2xl bg-[#007A4D] hover:bg-[#00633e] text-white font-bold text-sm shadow-lg shadow-emerald-700/25 transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Verifying with Meta Cloud API...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Verify & Connect WhatsApp</span>
+                      </>
+                    )}
+                  </button>
+
+                  <div className="text-center pt-2">
+                    {resendCooldown > 0 ? (
+                      <span className="text-xs text-slate-400 font-medium">
+                        Resend code in {resendCooldown}s
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleRequestOtp()}
+                        className="text-xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center justify-center space-x-1 mx-auto"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span>Resend OTP Code</span>
+                      </button>
+                    )}
+                  </div>
+                </form>
+              )}
+
+              {/* STEP 3: Success Screen */}
+              {step === 3 && (
+                <div className="text-center py-4 space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
+                    <CheckCircle2 className="w-9 h-9" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-black text-slate-900">WhatsApp Connected Successfully!</h4>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Your number is now registered directly on Meta WhatsApp Cloud API.
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-left space-y-2 text-xs">
+                    <div className="flex justify-between py-1 border-b border-slate-100">
+                      <span className="text-slate-500 font-medium">Connected Number:</span>
+                      <span className="font-black text-slate-900 font-mono">{phoneNumber}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-100">
+                      <span className="text-slate-500 font-medium">Business Name:</span>
+                      <span className="font-bold text-slate-900">{businessName}</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-slate-500 font-medium">Meta Quality Rating:</span>
+                      <span className="inline-flex items-center text-emerald-600 font-bold">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse" />
+                        High (Green)
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={onClose}
+                    className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition-all cursor-pointer"
+                  >
+                    Done & Return to Dashboard
+                  </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* TAB 3: Paste Numbers */}
-          {activeTab === 'paste' && (
+          {/* TAB 2: Contacts Import */}
+          {activeTab === 'contacts' && (
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Paste Phone Numbers (One per line or comma separated):
-                </label>
-                <textarea
-                  rows={5}
-                  value={pasteText}
-                  onChange={(e) => setPasteText(e.target.value)}
-                  placeholder={`9876543210\n9842100000\nCustomer 1, 9944495366\nSenthilkumar, 9894000000`}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none focus:border-[#075E54] focus:bg-white resize-none"
-                />
+              <div className="flex rounded-xl bg-slate-100 p-1 text-xs font-bold text-slate-600">
+                <button
+                  onClick={() => setContactsSubTab('sync')}
+                  className={`flex-1 py-1.5 rounded-lg transition-all ${
+                    contactsSubTab === 'sync' ? 'bg-white text-slate-900 shadow-xs' : 'hover:text-slate-900'
+                  }`}
+                >
+                  1-Click Sync
+                </button>
+                <button
+                  onClick={() => setContactsSubTab('file')}
+                  className={`flex-1 py-1.5 rounded-lg transition-all ${
+                    contactsSubTab === 'file' ? 'bg-white text-slate-900 shadow-xs' : 'hover:text-slate-900'
+                  }`}
+                >
+                  Upload VCF / CSV
+                </button>
+                <button
+                  onClick={() => setContactsSubTab('paste')}
+                  className={`flex-1 py-1.5 rounded-lg transition-all ${
+                    contactsSubTab === 'paste' ? 'bg-white text-slate-900 shadow-xs' : 'hover:text-slate-900'
+                  }`}
+                >
+                  Paste Numbers
+                </button>
               </div>
 
-              <button
-                onClick={handlePasteImport}
-                disabled={loading || !pasteText.trim()}
-                className="w-full py-2.5 bg-[#075E54] hover:bg-[#128C7E] disabled:bg-slate-300 text-white rounded-xl font-bold text-xs shadow-md transition-all flex items-center justify-center space-x-2"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Saving Contacts...</span>
-                  </>
-                ) : (
-                  <>
-                    <Users className="w-4 h-4" />
-                    <span>Save Pasted Contacts</span>
-                  </>
-                )}
-              </button>
+              {contactsSubTab === 'sync' && (
+                <div className="text-center py-6 space-y-4">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                    <Sparkles className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">Sync Real Contacts from WhatsApp</h4>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                      Instantly sync and verify contacts linked to your account.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleDeviceSync}
+                    disabled={loading}
+                    className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition-all inline-flex items-center space-x-2"
+                  >
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Smartphone className="w-4 h-4" />}
+                    <span>Sync Contacts Now</span>
+                  </button>
+                </div>
+              )}
+
+              {contactsSubTab === 'file' && (
+                <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:border-emerald-500 transition-all">
+                  <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-xs font-bold text-slate-700">Upload Phonebook (.VCF) or Excel/CSV (.csv)</p>
+                  <p className="text-[11px] text-slate-400 mt-1 mb-3">Android & iPhone exported contacts supported</p>
+                  <label className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold cursor-pointer hover:bg-slate-800 transition-all">
+                    <span>Choose File</span>
+                    <input
+                      type="file"
+                      accept=".vcf,.csv,.txt"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              )}
+
+              {contactsSubTab === 'paste' && (
+                <div className="space-y-3">
+                  <textarea
+                    rows={4}
+                    value={pasteText}
+                    onChange={(e) => setPasteText(e.target.value)}
+                    placeholder="Paste phone numbers (one per line or comma-separated):&#10;+919876543210&#10;+919876543211, Ramesh&#10;+919876543212"
+                    className="w-full p-3 rounded-xl border border-slate-200 text-xs font-mono focus:border-emerald-500 outline-hidden"
+                  />
+                  <button
+                    onClick={handlePasteSubmit}
+                    disabled={loading || !pasteText.trim()}
+                    className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50"
+                  >
+                    Import Pasted Numbers
+                  </button>
+                </div>
+              )}
+
+              {successMsg && (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{successMsg}</span>
+                </div>
+              )}
+
+              {errorMsg && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
             </div>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="bg-slate-50 px-6 py-3.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-          <span>Tenant: <strong>DJ Photograph</strong></span>
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 rounded-lg border border-slate-200 text-slate-700 font-semibold hover:bg-slate-100 transition-colors"
-          >
-            Close
-          </button>
         </div>
       </div>
     </div>

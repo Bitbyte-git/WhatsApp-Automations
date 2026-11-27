@@ -112,6 +112,10 @@ export const api = {
   createWhatsAppAccount: (data: any) => api.post<any>('/whatsapp/accounts/', data),
   syncWhatsAppAccount: (id: number) => api.post<any>(`/whatsapp/accounts/${id}/sync_status/`),
   getMetaStatus: () => api.get<any>('/whatsapp/status/'),
+  requestWhatsAppOtp: (data: { phone_number: string; business_name?: string; code_method?: 'SMS' | 'VOICE'; phone_number_id?: string }) =>
+    api.post<any>('/whatsapp/accounts/request_otp/', data),
+  verifyWhatsAppOtp: (data: { phone_number: string; code: string; pin?: string; business_name?: string; phone_number_id?: string }) =>
+    api.post<any>('/whatsapp/accounts/verify_otp/', data),
 
   // Inbox & Contacts
   getContacts: (params = '') => api.get<any>(`/inbox/contacts/${params ? `?${params}` : ''}`),
