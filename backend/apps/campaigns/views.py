@@ -489,7 +489,9 @@ class CampaignViewSet(viewsets.ModelViewSet):
                                 if errors and len(errors) > 0:
                                     err = errors[0]
                                     err_code = err.get('code')
-                                    if err_code == 131049:
+                                    if err_code == 131047:
+                                        res['error'] = 'Meta Error 131047: Customer has not replied in the last 24 hours. Service window is closed. Please send from the Utility tab.'
+                                    elif err_code == 131049:
                                         res['error'] = 'Meta Error 131049: Meta blocked this Marketing message to protect user experience. To message new customers directly, please send from the Utility tab.'
                                     elif err_code == 131026:
                                         res['error'] = 'Meta Error 131026: Message undeliverable. The recipient phone number may not be active on WhatsApp.'
