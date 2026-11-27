@@ -621,7 +621,10 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
                       type="text"
                       maxLength={6}
                       value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
+                      onChange={(e) => {
+                        setOtpCode(e.target.value.replace(/[^0-9]/g, ''));
+                        setErrorMsg('');
+                      }}
                       placeholder="• • • • • •"
                       required
                       autoFocus
@@ -629,24 +632,10 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 mb-1">
-                      Two-Step Verification PIN (Meta Security)
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={6}
-                      value={twoStepPin}
-                      onChange={(e) => setTwoStepPin(e.target.value.replace(/[^0-9]/g, ''))}
-                      placeholder="123456"
-                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-mono font-bold text-slate-700 focus:border-emerald-600 outline-hidden"
-                    />
-                  </div>
-
                   {errorMsg && (
-                    <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center space-x-2">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                      <span>{errorMsg}</span>
+                    <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-start space-x-2.5">
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                      <span className="leading-relaxed">{errorMsg}</span>
                     </div>
                   )}
 
