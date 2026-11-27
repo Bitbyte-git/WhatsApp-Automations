@@ -348,14 +348,19 @@ class MetaCloudAPIClient:
             ]
         else:
             if header_text and header_text.strip():
-                header_comp = {
-                    'type': 'HEADER',
-                    'format': 'TEXT',
-                    'text': header_text.strip()[:60],
-                }
-                if re.search(r'\{\{\d+\}\}', header_text):
-                    header_comp['example'] = {'header_text': ['Sample Header']}
-                components.append(header_comp)
+                # Meta forbids emojis, asterisks, newlines, and markdown formatting in text headers
+                clean_header = re.sub(r'[\r\n\t*~_`]+', ' ', header_text)
+                # Strip non-ASCII/emojis from header to guarantee 100% Meta compliance
+                clean_header = re.sub(r'[^\x00-\x7F]+', '', clean_header).strip()[:60]
+                if clean_header:
+                    header_comp = {
+                        'type': 'HEADER',
+                        'format': 'TEXT',
+                        'text': clean_header,
+                    }
+                    if re.search(r'\{\{\d+\}\}', clean_header):
+                        header_comp['example'] = {'header_text': ['Sample Header']}
+                    components.append(header_comp)
 
             body_comp = {
                 'type': 'BODY',
@@ -378,10 +383,12 @@ class MetaCloudAPIClient:
                 meta_buttons = []
                 for btn in buttons[:3]:
                     btn_text = (btn.get('text') if isinstance(btn, dict) else str(btn)).strip()
-                    if btn_text:
+                    # Clean button text (no emojis, max 25 chars)
+                    clean_btn = re.sub(r'[^\x00-\x7F]+', '', btn_text).strip()[:25]
+                    if clean_btn:
                         meta_buttons.append({
                             'type': 'QUICK_REPLY',
-                            'text': btn_text[:25],
+                            'text': clean_btn,
                         })
                 if meta_buttons:
                     components.append({
@@ -389,9 +396,13 @@ class MetaCloudAPIClient:
                         'buttons': meta_buttons,
                     })
 
+        # Sanitize template name: lowercase, letters/numbers/underscores only
+        safe_name = re.sub(r'[^a-z0-9_]', '_', name.strip().lower())
+        safe_name = re.sub(r'_+', '_', safe_name).strip('_')
+
         url = f"{self.base_url}/{self.waba_id}/message_templates"
         payload = {
-            'name': name.strip().lower(),
+            'name': safe_name,
             'category': category.upper(),
             'language': language.strip(),
             'components': components,

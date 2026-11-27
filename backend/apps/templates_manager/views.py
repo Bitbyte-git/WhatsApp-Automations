@@ -79,8 +79,12 @@ class MessageTemplateViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        import re
+        safe_name = re.sub(r'[^a-z0-9_]', '_', validated['name'].strip().lower())
+        safe_name = re.sub(r'_+', '_', safe_name).strip('_')
+
         meta_res = meta_client.create_template(
-            name=validated['name'],
+            name=safe_name,
             category=validated['category'],
             language=validated.get('language', 'en_US'),
             body_text=validated['body_text'],
@@ -95,6 +99,7 @@ class MessageTemplateViewSet(viewsets.ModelViewSet):
             )
 
         instance = serializer.save(
+            name=safe_name,
             client=account.client,
             whatsapp_account=account,
             meta_template_id=meta_res.get('meta_template_id', ''),

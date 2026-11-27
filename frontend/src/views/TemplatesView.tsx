@@ -336,9 +336,12 @@ export const TemplatesView: React.FC = () => {
             <input
               type="text"
               required
-              placeholder="e.g. order_confirmation_v1"
+              placeholder="e.g. ak_dress_shop"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                const clean = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+                setName(clean);
+              }}
               className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 font-mono"
             />
           </div>
@@ -378,12 +381,14 @@ export const TemplatesView: React.FC = () => {
           ) : (
             <>
               <div>
-                <label className="block font-semibold text-gray-700 uppercase tracking-wider mb-1">Header Text (Optional)</label>
+                <label className="block font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                  Header Text (Optional - Plain Text, No Emojis)
+                </label>
                 <input
                   type="text"
-                  placeholder="e.g. Order Confirmed! 🎉"
+                  placeholder="e.g. Special Festive Offer"
                   value={headerText}
-                  onChange={(e) => setHeaderText(e.target.value)}
+                  onChange={(e) => setHeaderText(e.target.value.replace(/[^\x00-\x7F]/g, ''))}
                   className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500"
                 />
               </div>
@@ -414,12 +419,14 @@ export const TemplatesView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-gray-700 uppercase tracking-wider mb-1">Quick Reply Button Label (Optional)</label>
+                <label className="block font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                  Quick Reply Button Label (Optional - Plain Text, No Emojis)
+                </label>
                 <input
                   type="text"
-                  placeholder="e.g. Track My Order"
+                  placeholder="e.g. Claim Offer"
                   value={buttonText}
-                  onChange={(e) => setButtonText(e.target.value)}
+                  onChange={(e) => setButtonText(e.target.value.replace(/[^\x00-\x7F]/g, ''))}
                   className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500"
                 />
               </div>
