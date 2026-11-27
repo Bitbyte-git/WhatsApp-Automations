@@ -133,7 +133,7 @@ class WhatsAppAccountViewSet(viewsets.ModelViewSet):
                 'success': False,
                 'already_registered_on_mobile': True,
                 'error': result.get('error'),
-                'instruction': 'This number is currently active on your mobile WhatsApp app. To connect to Cloud API, open WhatsApp on your phone -> Settings -> Account -> Delete my account. Or use a fresh SIM number.'
+                'instruction': 'Sorry! This phone number is already active on WhatsApp. Please provide a new phone number that is not on WhatsApp, or delete the current WhatsApp account on this number.'
             }, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({

@@ -447,11 +447,21 @@ class MetaCloudAPIClient:
             err_obj = data.get('error', {})
             error_code = err_obj.get('code')
             error_subcode = err_obj.get('error_subcode')
-            if error_code == 133010 or error_subcode == 133010 or 'already registered' in err_obj.get('message', '').lower():
+            err_msg_lower = str(err_obj).lower()
+
+            if (
+                error_code == 133010
+                or error_subcode == 133010
+                or 'already registered' in err_msg_lower
+                or 'already verified' in err_msg_lower
+                or 'verified ownership' in err_msg_lower
+                or 'already active' in err_msg_lower
+                or 'already associated' in err_msg_lower
+            ):
                 return {
                     'success': False,
                     'already_registered_on_mobile': True,
-                    'error': 'This phone number is currently active on a mobile WhatsApp application. Please delete the account from your mobile WhatsApp app first, or use a fresh number.',
+                    'error': 'Sorry! This phone number is already active on WhatsApp. Please provide a new phone number that is not on WhatsApp, or delete your current mobile WhatsApp account to continue.',
                     'code': 133010,
                     'data': data
                 }
@@ -480,12 +490,21 @@ class MetaCloudAPIClient:
             err_obj = data.get('error', {})
             error_code = err_obj.get('code')
             error_subcode = err_obj.get('error_subcode')
-            # 133010: Phone number already registered on mobile WhatsApp
-            if error_code == 133010 or error_subcode == 133010 or 'already registered' in err_obj.get('message', '').lower():
+            err_msg_lower = str(err_obj).lower()
+
+            if (
+                error_code == 133010
+                or error_subcode == 133010
+                or 'already registered' in err_msg_lower
+                or 'already verified' in err_msg_lower
+                or 'verified ownership' in err_msg_lower
+                or 'already active' in err_msg_lower
+                or 'already associated' in err_msg_lower
+            ):
                 return {
                     'success': False,
                     'already_registered_on_mobile': True,
-                    'error': 'This phone number is already active on a mobile WhatsApp application. Please delete the account from your mobile WhatsApp app first, or use a fresh number.',
+                    'error': 'Sorry! This phone number is already active on WhatsApp. Please provide a new phone number that is not on WhatsApp, or delete your current mobile WhatsApp account to continue.',
                     'code': 133010,
                     'data': data
                 }

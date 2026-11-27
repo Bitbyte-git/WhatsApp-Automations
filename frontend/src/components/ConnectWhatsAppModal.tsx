@@ -101,16 +101,44 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
         setResendCooldown(30);
         setSuccessMsg(res.message || `6-digit OTP code sent via ${codeMethod} to ${cleaned}`);
       } else {
-        if (res?.already_registered_on_mobile || res?.code === 133010) {
+        const rawErr = [res?.error || '', res?.instruction || '', JSON.stringify(res || '')].join(' ').toLowerCase();
+        if (
+          res?.already_registered_on_mobile ||
+          res?.code === 133010 ||
+          rawErr.includes('already') ||
+          rawErr.includes('verified ownership') ||
+          rawErr.includes('registered')
+        ) {
           setIsMobileConflict(true);
+          setErrorMsg('Sorry! This phone number is already active on WhatsApp. Please provide a new phone number that is not on WhatsApp, or delete your current mobile WhatsApp account.');
+        } else {
+          setErrorMsg(res?.error || 'Failed to request OTP from Meta.');
         }
-        setErrorMsg(res?.error || 'Failed to request OTP from Meta.');
       }
     } catch (err: any) {
-      if (err?.already_registered_on_mobile || err?.message?.includes('133010') || err?.message?.includes('already active')) {
+      const errData = err?.data || {};
+      const rawErr = [
+        err?.message || '',
+        errData?.error || '',
+        errData?.instruction || '',
+        errData?.detail || '',
+        JSON.stringify(errData)
+      ].join(' ').toLowerCase();
+
+      if (
+        errData?.already_registered_on_mobile ||
+        err?.already_registered_on_mobile ||
+        rawErr.includes('133010') ||
+        rawErr.includes('already') ||
+        rawErr.includes('verified ownership') ||
+        rawErr.includes('already active') ||
+        rawErr.includes('registered')
+      ) {
         setIsMobileConflict(true);
+        setErrorMsg('Sorry! This phone number is already active on WhatsApp. Please provide a new phone number that is not on WhatsApp, or delete your current mobile WhatsApp account.');
+      } else {
+        setErrorMsg(errData?.error || err.message || 'Error communicating with Meta Cloud API.');
       }
-      setErrorMsg(err.message || 'Error communicating with Meta Cloud API.');
     } finally {
       setLoading(false);
     }
@@ -465,15 +493,25 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
 
                   {/* Mobile Conflict Alert */}
                   {isMobileConflict && (
-                    <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs">
-                      <div className="flex items-start space-x-2">
-                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-bold">Number Already Active on Mobile WhatsApp!</p>
-                          <p className="text-rose-700 mt-1">
-                            Meta Error 133010: This phone number is currently registered on a mobile WhatsApp application.
-                            Please open your mobile WhatsApp app, navigate to <strong>Settings ➔ Account ➔ Delete my account</strong>, or use a new dedicated SIM number.
+                    <div className="p-4 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-950 text-xs shadow-xs animate-in fade-in">
+                      <div className="flex items-start space-x-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="space-y-1.5 leading-relaxed">
+                          <p className="font-black text-sm text-amber-900">
+                            Sorry! This number is already active on WhatsApp
                           </p>
+                          <p className="text-amber-800 font-medium">
+                            You have already registered/verified ownership of this phone number. Meta Cloud API cannot connect to a number currently active on a mobile WhatsApp application.
+                          </p>
+                          <div className="p-3 rounded-xl bg-white/90 border border-amber-200 text-[11px] space-y-1.5 mt-2">
+                            <p className="font-extrabold text-amber-950 uppercase tracking-wide">Please choose one of the following:</p>
+                            <p>
+                              ✅ <strong>Option 1 (Recommended):</strong> Please provide a <strong>fresh SIM number</strong> that does NOT have a WhatsApp account.
+                            </p>
+                            <p>
+                              ⚠️ <strong>Option 2:</strong> If you want to use this number, open the WhatsApp app on your mobile phone ➔ Go to <strong>Settings ➔ Account ➔ "Delete my account"</strong>, and then try connecting here again.
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
