@@ -502,6 +502,20 @@ class CampaignViewSet(viewsets.ModelViewSet):
 
                 gateway_results.append({'phone': cleaned_phone, 'result': res})
 
+                # Create CampaignRecipient tracking record so webhooks update campaign status in real time
+                try:
+                    from apps.campaigns.models import CampaignRecipient
+                    cr_status = 'SENT' if (res and res.get('success')) else 'FAILED'
+                    CampaignRecipient.objects.create(
+                        campaign=campaign,
+                        phone_number=cleaned_phone,
+                        status=cr_status,
+                        meta_message_id=res.get('wamid') if res else None,
+                        error_message=res.get('error') if (res and not res.get('success')) else None
+                    )
+                except Exception as cr_err:
+                    logger.warning(f"Failed to record CampaignRecipient: {cr_err}")
+
                 if res and res.get('success'):
                     sent_count += 1
                     if not is_free_test:

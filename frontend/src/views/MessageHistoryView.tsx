@@ -43,8 +43,8 @@ export const MessageHistoryView: React.FC = () => {
   const { visibleCount, hasMore, loadingMore, sentinelRef } = useInfiniteScroll(filteredCampaigns.length, 15, 15);
   const visibleCampaigns = filteredCampaigns.slice(0, visibleCount);
 
-  const totalDelivered = campaigns.reduce((acc, c) => acc + (c.delivered_count || c.sent_count || 0), 0);
-  const totalFailed = campaigns.reduce((acc, c) => acc + (c.failed_count || 0), 0);
+  const totalDelivered = campaigns.reduce((acc, c) => acc + (c.status === 'FAILED' ? 0 : (c.delivered_count ?? (c.failed_count > 0 ? 0 : c.sent_count) ?? 0)), 0);
+  const totalFailed = campaigns.reduce((acc, c) => acc + (c.failed_count || (c.status === 'FAILED' ? c.total_recipients : 0)), 0);
 
   const getCampaignCostInfo = (camp: any) => {
     const nameLower = (camp.name || '').toLowerCase();
@@ -186,7 +186,8 @@ export const MessageHistoryView: React.FC = () => {
                 <tbody className="divide-y divide-slate-100 text-slate-700">
                   {visibleCampaigns.map((camp) => {
                     const costInfo = getCampaignCostInfo(camp);
-                    const delivered = camp.delivered_count || camp.sent_count || 0;
+                    const delivered = camp.status === 'FAILED' ? 0 : (camp.delivered_count ?? (camp.failed_count > 0 ? 0 : camp.sent_count) ?? 0);
+                    const failed = camp.failed_count || (camp.status === 'FAILED' ? camp.total_recipients : 0);
                     const totalCost = delivered * costInfo.unitRate;
                     return (
                     <tr key={camp.id} className="hover:bg-slate-50/60 transition-colors">
@@ -196,7 +197,7 @@ export const MessageHistoryView: React.FC = () => {
                         <Badge status={camp.status} />
                       </td>
                       <td className="py-3.5 px-4 font-bold text-emerald-600">{delivered}</td>
-                      <td className="py-3.5 px-4 font-bold text-rose-600">{camp.failed_count}</td>
+                      <td className="py-3.5 px-4 font-bold text-rose-600">{failed}</td>
                       <td className="py-3.5 px-4">
                         {costInfo.isFree ? (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">

@@ -188,6 +188,33 @@ class MetaWhatsAppWebhookView(views.APIView):
                             msg.error_message = errors[0].get('message', 'Delivery failed') if errors else ''
                         msg.save()
 
+                    # Update Campaign & CampaignRecipient records
+                    try:
+                        from apps.campaigns.models import Campaign, CampaignRecipient
+                        cr = CampaignRecipient.objects.filter(meta_message_id=wamid).first()
+                        if cr:
+                            camp = cr.campaign
+                            if status_name in ['DELIVERED', 'READ']:
+                                if cr.status not in ['DELIVERED', 'READ']:
+                                    cr.status = 'DELIVERED'
+                                    cr.delivered_at = timezone.now()
+                                    cr.save(update_fields=['status', 'delivered_at'])
+                                    camp.delivered_count = (camp.delivered_count or 0) + 1
+                                    camp.save(update_fields=['delivered_count'])
+                            elif status_name == 'FAILED':
+                                cr.status = 'FAILED'
+                                errors = st.get('errors', [{}])
+                                cr.error_message = errors[0].get('message', 'Delivery failed') if errors else ''
+                                cr.save(update_fields=['status', 'error_message'])
+                                camp.failed_count = (camp.failed_count or 0) + 1
+                                if camp.sent_count > 0:
+                                    camp.sent_count -= 1
+                                if camp.delivered_count == 0:
+                                    camp.status = 'FAILED'
+                                camp.save(update_fields=['failed_count', 'sent_count', 'status'])
+                    except Exception as e:
+                        logger.warning(f"Error updating campaign from webhook status: {e}")
+
                 # Process Inbound Messages
                 messages = value.get('messages', [])
                 contacts_info = value.get('contacts', [])
