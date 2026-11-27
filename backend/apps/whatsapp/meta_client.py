@@ -513,20 +513,48 @@ class MetaCloudAPIClient:
         except requests.exceptions.RequestException as e:
             return {'success': False, 'error': str(e)}
 
-    def register_phone_number(self, pin='123456', code=None):
+    def verify_phone_code(self, code):
         """
-        Registers phone number with Meta Cloud API using the verified 6-digit OTP code and a two-step PIN.
+        Submits the 6-digit SMS OTP to Meta's official /verify_code endpoint.
+        Changes phone number status from UNVERIFIED to VERIFIED.
         """
         if not self.phone_number_id or not self.access_token:
             return {'success': False, 'error': 'Missing Phone Number ID or Meta System User Token.'}
 
+        url = f"{self.base_url}/{self.phone_number_id}/verify_code"
+        payload = {'code': str(code).strip()}
+
+        try:
+            response = requests.post(url, json=payload, headers=self._get_headers(), timeout=15)
+            data = response.json()
+            if response.status_code in [200, 201] and data.get('success'):
+                return {'success': True, 'data': data}
+            err_obj = data.get('error', {})
+            error_msg = err_obj.get('error_user_msg') or err_obj.get('message') or 'Invalid OTP verification code.'
+            return {'success': False, 'error': error_msg, 'code': err_obj.get('code'), 'data': data}
+        except requests.exceptions.RequestException as e:
+            return {'success': False, 'error': str(e)}
+
+    def register_phone_number(self, pin='123456', code=None):
+        """
+        Registers phone number with Meta Cloud API.
+        If code is provided, verifies code first via /verify_code, then registers with PIN.
+        """
+        if not self.phone_number_id or not self.access_token:
+            return {'success': False, 'error': 'Missing Phone Number ID or Meta System User Token.'}
+
+        if code:
+            verify_res = self.verify_phone_code(code)
+            if not verify_res.get('success'):
+                err_text = verify_res.get('error', '').lower()
+                if 'already verified' not in err_text:
+                    return verify_res
+
         url = f"{self.base_url}/{self.phone_number_id}/register"
         payload = {
             'messaging_product': 'whatsapp',
-            'pin': str(pin)
+            'pin': str(pin or '123456')
         }
-        if code:
-            payload['code'] = str(code).strip()
 
         try:
             response = requests.post(url, json=payload, headers=self._get_headers(), timeout=15)
