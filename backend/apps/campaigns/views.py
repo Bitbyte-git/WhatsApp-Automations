@@ -475,6 +475,31 @@ class CampaignViewSet(viewsets.ModelViewSet):
                             message=full_message
                         )
 
+                # Check for Meta Cloud API immediate webhook rejection (e.g. Error 131049 on cold marketing leads)
+                if res and res.get('success'):
+                    meta_wamid = res.get('wamid')
+                    if meta_wamid and len(recipients_list) == 1:
+                        import time
+                        from apps.whatsapp.models import WebhookEvent
+                        for _ in range(4):
+                            time.sleep(0.5)
+                            wh_event = WebhookEvent.objects.filter(payload__icontains=meta_wamid).order_by('-id').first()
+                            if wh_event and isinstance(wh_event.payload, dict):
+                                errors = wh_event.payload.get('errors')
+                                if errors and len(errors) > 0:
+                                    err = errors[0]
+                                    err_code = err.get('code')
+                                    if err_code == 131049:
+                                        res['error'] = 'Meta Error 131049: Meta blocked this Marketing message to protect user experience. To message new customers directly, please send from the Utility tab.'
+                                    elif err_code == 131026:
+                                        res['error'] = 'Meta Error 131026: Message undeliverable. The recipient phone number may not be active on WhatsApp.'
+                                    else:
+                                        res['error'] = f"Meta Error {err_code}: {err.get('message') or err.get('title') or 'Message delivery rejected by Meta'}"
+                                    res['success'] = False
+                                    break
+                                elif wh_event.payload.get('status') in ['delivered', 'read']:
+                                    break
+
                 gateway_results.append({'phone': cleaned_phone, 'result': res})
 
                 if res and res.get('success'):
@@ -515,6 +540,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
                     if sent_count > 0
                     else f'WhatsApp Gateway delivery error: {last_error or "Message could not be delivered."}'
                 ),
+                'error': last_error if sent_count == 0 else None,
                 'sent_count': sent_count,
                 'failed_count': failed_count,
                 'campaign_id': campaign.id,

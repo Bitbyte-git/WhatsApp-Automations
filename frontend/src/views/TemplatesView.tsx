@@ -5,11 +5,14 @@ import {
   RefreshCw,
   Search,
   CheckCircle,
+  CheckCircle2,
   Clock,
   AlertCircle,
   Eye,
   Smartphone,
   ExternalLink,
+  X,
+  Sparkles,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { MessageTemplate, WhatsAppAccount } from '../types';
@@ -17,6 +20,128 @@ import { Badge } from '../components/Badge';
 import { Modal } from '../components/Modal';
 import { EmptyState } from '../components/EmptyState';
 import { useAuth } from '../context/AuthContext';
+
+// In-file Success Modal (No extra file created)
+interface SuccessModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  message: string;
+  templateName?: string;
+  status?: string;
+  onSync?: () => void;
+  syncing?: boolean;
+}
+
+const SuccessModal: React.FC<SuccessModalProps> = ({
+  isOpen,
+  onClose,
+  title,
+  message,
+  templateName,
+  status = 'PENDING',
+  onSync,
+  syncing = false,
+}) => {
+  if (!isOpen) return null;
+
+  const isPending = status?.toUpperCase() === 'PENDING';
+  const isApproved = status?.toUpperCase() === 'APPROVED';
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div
+          className="fixed inset-0 transition-opacity bg-gray-900/60 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
+
+        <div className="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle w-full max-w-md border border-gray-100 p-6 sm:p-7 relative z-10">
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          {/* Icon Badge */}
+          <div className="flex flex-col items-center text-center">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mb-4 shadow-sm relative">
+              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+              <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 animate-ping opacity-75" />
+            </div>
+
+            <h3 className="text-xl font-bold text-gray-900 tracking-tight">{title}</h3>
+
+            <p className="text-xs text-gray-500 mt-1 max-w-xs leading-relaxed">{message}</p>
+          </div>
+
+          {/* Details Card */}
+          {(templateName || status) && (
+            <div className="mt-5 p-4 rounded-2xl bg-gray-50 border border-gray-100 space-y-2.5">
+              {templateName && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-500 font-medium">Template Name:</span>
+                  <span className="font-mono font-semibold text-gray-900 bg-white px-2.5 py-1 rounded-lg border border-gray-200">
+                    {templateName}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500 font-medium">Meta Review Status:</span>
+                <span
+                  className={`inline-flex items-center px-2.5 py-1 rounded-lg font-semibold text-[11px] ${
+                    isApproved
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                      : isPending
+                      ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                      : 'bg-blue-100 text-blue-800 border border-blue-200'
+                  }`}
+                >
+                  {isPending && <Clock className="w-3 h-3 mr-1 animate-spin" />}
+                  {isApproved && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                  {status}
+                </span>
+              </div>
+
+              <div className="pt-2 border-t border-gray-200/60 text-[11px] text-gray-500 flex items-start gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                <span>
+                  Meta automated review takes 1–5 minutes. Once approved, you can broadcast messages with this template.
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="mt-6 flex flex-col sm:flex-row gap-2.5">
+            {onSync && (
+              <button
+                type="button"
+                onClick={onSync}
+                disabled={syncing}
+                className="flex-1 inline-flex items-center justify-center px-4 py-2.5 text-xs font-semibold rounded-xl text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Checking Status...' : 'Check Approval Now'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 inline-flex items-center justify-center px-4 py-2.5 text-xs font-semibold rounded-xl text-white bg-emerald-600 hover:bg-emerald-700 transition-colors shadow-sm"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const TemplatesView: React.FC = () => {
   const { user, activeTenantId } = useAuth();
@@ -33,6 +158,20 @@ export const TemplatesView: React.FC = () => {
   const [otpCode, setOtpCode] = useState('');
   const [otpSending, setOtpSending] = useState(false);
   const [otpFeedback, setOtpFeedback] = useState('');
+
+  // Success & Sync Notification States (No window.alert)
+  const [successInfo, setSuccessInfo] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    templateName?: string;
+    status?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+  });
+  const [syncToast, setSyncToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Form State
   const [name, setName] = useState('');
@@ -74,14 +213,52 @@ export const TemplatesView: React.FC = () => {
 
   const handleSyncFromMeta = async () => {
     setSyncing(true);
+    setSyncToast(null);
     try {
       const res = await api.syncTemplatesFromMeta({
         whatsapp_account_id: accounts[0]?.id,
       });
-      alert(res.message);
+      setSyncToast({
+        type: 'success',
+        text: res.message || 'Templates successfully synced from Meta Cloud API!',
+      });
       loadData();
+      setTimeout(() => setSyncToast(null), 5000);
     } catch (err: any) {
-      alert(err.message || 'WhatsApp integration is not configured. Missing Meta credentials or WABA ID.');
+      setSyncToast({
+        type: 'error',
+        text: err.message || 'WhatsApp integration is not configured. Missing Meta credentials or WABA ID.',
+      });
+      setTimeout(() => setSyncToast(null), 6000);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleCheckApprovalInModal = async () => {
+    setSyncing(true);
+    try {
+      await api.syncTemplatesFromMeta({
+        whatsapp_account_id: accounts[0]?.id,
+      });
+      const params = new URLSearchParams();
+      if (activeTenantId) params.append('client_id', activeTenantId);
+      const tmplRes = await api.getTemplates(params.toString());
+      const updatedList: MessageTemplate[] = Array.isArray(tmplRes.data) ? tmplRes.data : [];
+      setTemplates(updatedList);
+      
+      const match = updatedList.find(t => t.name === successInfo.templateName);
+      if (match) {
+        setSuccessInfo(prev => ({
+          ...prev,
+          status: match.status,
+          message: match.status === 'APPROVED'
+            ? 'Awesome! Meta has approved your template. You can now use it in broadcasts.'
+            : 'Meta automated review is still in progress. Usually takes 1–5 minutes.',
+        }));
+      }
+    } catch (err: any) {
+      // silently ignore in modal check
     } finally {
       setSyncing(false);
     }
@@ -127,7 +304,15 @@ export const TemplatesView: React.FC = () => {
       setFooterText('');
       setButtonText('');
       loadData();
-      alert(`Template "${created?.name || payload.name}" submitted to Meta! Status: ${created?.status || 'PENDING'}. Click "Sync from Meta" in 1 minute to refresh approval status.`);
+
+      // Show beautiful success popup instead of browser window.alert
+      setSuccessInfo({
+        isOpen: true,
+        title: 'Template Submitted to Meta!',
+        message: 'Your template has been submitted to Meta Cloud API for review.',
+        templateName: created?.name || payload.name,
+        status: created?.status || 'PENDING',
+      });
     } catch (err: any) {
       setFormError(err.message || 'Failed to create message template.');
     } finally {
@@ -137,6 +322,32 @@ export const TemplatesView: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Toast Notification Banner */}
+      {syncToast && (
+        <div
+          className={`flex items-center justify-between p-3.5 rounded-2xl border text-xs font-medium transition-all shadow-sm ${
+            syncToast.type === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+              : 'bg-rose-50 border-rose-200 text-rose-900'
+          }`}
+        >
+          <div className="flex items-center space-x-2.5">
+            {syncToast.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span>{syncToast.text}</span>
+          </div>
+          <button
+            onClick={() => setSyncToast(null)}
+            className="text-gray-400 hover:text-gray-600 font-bold px-1.5 py-0.5 rounded-lg hover:bg-black/5"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -532,6 +743,18 @@ export const TemplatesView: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Success Modal - Replaces browser alert */}
+      <SuccessModal
+        isOpen={successInfo.isOpen}
+        onClose={() => setSuccessInfo(prev => ({ ...prev, isOpen: false }))}
+        title={successInfo.title}
+        message={successInfo.message}
+        templateName={successInfo.templateName}
+        status={successInfo.status}
+        onSync={handleCheckApprovalInModal}
+        syncing={syncing}
+      />
     </div>
   );
 };

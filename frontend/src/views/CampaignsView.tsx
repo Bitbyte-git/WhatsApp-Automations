@@ -4,6 +4,7 @@ import {
   Plus,
   CheckCircle,
   AlertCircle,
+  XCircle,
   Users,
   Smartphone,
   Sparkles,
@@ -42,7 +43,14 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [walletBalance, setWalletBalance] = useState<string>('0.00');
-  const [successPopup, setSuccessPopup] = useState<{ title: string; message: string; category: string } | null>(null);
+  const [dispatchPopup, setDispatchPopup] = useState<{
+    isOpen: boolean;
+    isSuccess: boolean;
+    title: string;
+    message: string;
+    category: string;
+    errorTip?: string;
+  } | null>(null);
 
   // Real Form State (Zero hardcoded data)
   const [campaignTitle, setCampaignTitle] = useState('');
@@ -271,13 +279,15 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
             ? `Message delivered to +91 ${testPhoneNumber}!`
             : `Broadcast successfully delivered to ${count} recipient(s)!`;
         setAlertSuccess(successMsg);
-        setSuccessPopup({
+        setDispatchPopup({
+          isOpen: true,
+          isSuccess: true,
           title:
             serviceType === 'UTILITY'
-              ? 'Utility Update Sent!'
+              ? 'Utility Update Delivered!'
               : serviceType === 'SERVICE'
-              ? 'Service Reply Sent!'
-              : 'Marketing Message Sent!',
+              ? 'Service Reply Delivered!'
+              : 'Marketing Message Delivered!',
           message: successMsg,
           category: serviceType,
         });
@@ -305,10 +315,29 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
         }
         loadData();
       } else {
-        setAlertError(res?.message || 'Failed to dispatch WhatsApp broadcast.');
+        const errorMsg = res?.error || res?.message || 'Failed to dispatch WhatsApp broadcast.';
+        setAlertError(errorMsg);
+        setDispatchPopup({
+          isOpen: true,
+          isSuccess: false,
+          title: 'Delivery Failed',
+          message: errorMsg,
+          category: serviceType,
+          errorTip: errorMsg.includes('131049')
+            ? 'Meta policy blocks promotional messages to numbers that have not opted in. Switch to the Utility tab to send updates/alerts.'
+            : undefined,
+        });
       }
     } catch (err: any) {
-      setAlertError(err.message || 'Error executing WhatsApp broadcast.');
+      const errorMsg = err.message || 'Error executing WhatsApp broadcast.';
+      setAlertError(errorMsg);
+      setDispatchPopup({
+        isOpen: true,
+        isSuccess: false,
+        title: 'Delivery Failed',
+        message: errorMsg,
+        category: serviceType,
+      });
     } finally {
       setSending(false);
     }
@@ -1116,33 +1145,56 @@ export const CampaignsView: React.FC<CampaignsViewProps> = ({ initialCategory = 
         )}
       </div>
 
-      {/* Success Popup Modal */}
+      {/* Dispatch Result Popup Modal (Success or Meta Error) */}
       <Modal
-        isOpen={!!successPopup}
-        onClose={() => setSuccessPopup(null)}
-        title={successPopup?.title || 'Message Sent'}
+        isOpen={!!dispatchPopup}
+        onClose={() => setDispatchPopup(null)}
+        title={dispatchPopup?.title || 'Dispatch Status'}
       >
         <div className="text-center py-4 space-y-4">
-          <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-            <CheckCircle className="w-9 h-9" />
+          <div
+            className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto ${
+              dispatchPopup?.isSuccess
+                ? 'bg-emerald-100 text-emerald-600'
+                : 'bg-rose-100 text-rose-600'
+            }`}
+          >
+            {dispatchPopup?.isSuccess ? (
+              <CheckCircle className="w-9 h-9" />
+            ) : (
+              <XCircle className="w-9 h-9" />
+            )}
           </div>
-          <div className="space-y-1.5">
-            <p className="text-base font-extrabold text-slate-900">
-              {successPopup?.title}
+          <div className="space-y-2">
+            <p
+              className={`text-base font-extrabold ${
+                dispatchPopup?.isSuccess ? 'text-slate-900' : 'text-rose-900'
+              }`}
+            >
+              {dispatchPopup?.title}
             </p>
-            <p className="text-sm font-medium text-slate-600">
-              {successPopup?.message}
+            <p className="text-sm font-medium text-slate-700 leading-relaxed max-w-sm mx-auto">
+              {dispatchPopup?.message}
             </p>
+            {dispatchPopup?.errorTip && (
+              <p className="text-xs font-medium text-amber-700 bg-amber-50 p-2.5 rounded-xl border border-amber-200 text-left">
+                💡 {dispatchPopup.errorTip}
+              </p>
+            )}
             <p className="text-[11px] text-slate-400">
-              Dispatched via Meta WhatsApp Cloud API ({successPopup?.category})
+              Dispatched via Meta WhatsApp Cloud API ({dispatchPopup?.category})
             </p>
           </div>
           <button
             type="button"
-            onClick={() => setSuccessPopup(null)}
-            className="w-full py-2.5 bg-[#075E54] hover:bg-[#064E3B] text-white font-bold text-sm rounded-xl transition-colors"
+            onClick={() => setDispatchPopup(null)}
+            className={`w-full py-2.5 font-bold text-sm rounded-xl transition-colors text-white ${
+              dispatchPopup?.isSuccess
+                ? 'bg-[#075E54] hover:bg-[#064E3B]'
+                : 'bg-slate-800 hover:bg-slate-900'
+            }`}
           >
-            OK, Got It
+            {dispatchPopup?.isSuccess ? 'OK, Got It' : 'Close'}
           </button>
         </div>
       </Modal>
