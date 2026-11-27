@@ -327,24 +327,34 @@ class CampaignViewSet(viewsets.ModelViewSet):
 
             button_str = ','.join(button_labels[:3])
 
-            # Ensure account & template exist for foreign key compliance
-            account = WhatsAppAccount.objects.filter(client=client).first()
-            if not account and meta_client.phone_number_id:
-                account = WhatsAppAccount.objects.filter(phone_number_id=meta_client.phone_number_id).first()
-            if not account:
-                waba_id_val = meta_client.waba_id or getattr(settings, 'META_WABA_ID', '') or f'waba-{client.id}'
-                account, _ = WhatsAppAccount.objects.get_or_create(
-                    phone_number_id=meta_client.phone_number_id or f'direct-meta-{client.id}',
-                    defaults={
-                        'client': client,
-                        'business_name': f'{client.name} Official Gateway',
-                        'phone_number': '+919944495366',
-                        'waba_id': waba_id_val,
-                        'access_token': meta_client.access_token,
-                        'connection_status': 'CONNECTED',
-                        'account_status': 'ACTIVE'
-                    }
-                )
+            # Strict Multi-Tenant Isolation: Outbound messages MUST go strictly from Client's own connected number
+            account = (
+                WhatsAppAccount.objects.filter(client=client, connection_status='CONNECTED').first()
+                or WhatsAppAccount.objects.filter(client=client).first()
+            )
+
+            if not user.is_superadmin:
+                if not account or not account.phone_number_id or account.connection_status != 'CONNECTED':
+                    return Response({
+                        'error': 'Your WhatsApp Business phone number is not connected yet. Please click [Connect WhatsApp] in the top-right header to verify and connect your business number before broadcasting.'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+
+            target_phone_number_id = (
+                account.phone_number_id if account and account.phone_number_id
+                else (getattr(settings, 'META_PHONE_NUMBER_ID', '') if user.is_superadmin else None)
+            )
+
+            if not target_phone_number_id:
+                return Response({
+                    'error': 'No connected WhatsApp phone number found for this tenant. Please connect your number first.'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            meta_client = MetaCloudAPIClient(
+                phone_number_id=target_phone_number_id,
+                access_token=(account.access_token if account and account.access_token else None) or getattr(settings, 'META_SYSTEM_USER_TOKEN', ''),
+                waba_id=(account.waba_id if account and account.waba_id else None) or getattr(settings, 'META_WABA_ID', '')
+            )
+            infisq_client = InfisqWhatsAppClient()
 
             preferred_tpl_name = (
                 'bitbyte_utility_update' if message_category == 'UTILITY'

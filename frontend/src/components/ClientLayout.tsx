@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   MessageSquare,
@@ -20,9 +20,11 @@ import {
   ChevronDown,
   ChevronRight,
   Layers,
+  CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ConnectWhatsAppModal } from './ConnectWhatsAppModal';
+import { api } from '../services/api';
 
 interface ClientLayoutProps {
   currentTab: string;
@@ -35,6 +37,26 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({ currentTab, setCurre
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [connectModalOpen, setConnectModalOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(true);
+  const [connectedAccount, setConnectedAccount] = useState<any>(null);
+
+  const fetchConnectedAccount = async () => {
+    try {
+      const res = await api.getWhatsAppAccounts();
+      const accounts = Array.isArray(res) ? res : res?.results || [];
+      const connected = accounts.find((a: any) => a.connection_status === 'CONNECTED');
+      if (connected) {
+        setConnectedAccount(connected);
+      } else {
+        setConnectedAccount(null);
+      }
+    } catch {
+      setConnectedAccount(null);
+    }
+  };
+
+  useEffect(() => {
+    fetchConnectedAccount();
+  }, [user]);
 
   const clientName = user?.client_details?.name || 'My Business';
 
@@ -243,13 +265,30 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({ currentTab, setCurre
           </div>
 
           <div className="flex items-center space-x-2.5">
-            <button
-              onClick={() => setConnectModalOpen(true)}
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#25D366] hover:bg-[#1ebe5d] text-white text-xs font-bold shadow-xs transition-all"
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Connect WhatsApp</span>
-            </button>
+            {connectedAccount && connectedAccount.connection_status === 'CONNECTED' ? (
+              <button
+                onClick={() => setConnectModalOpen(true)}
+                title="Click to view connected WhatsApp account details"
+                className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-bold shadow-xs transition-all cursor-pointer group"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <Smartphone className="w-3.5 h-3.5 text-emerald-600 group-hover:scale-110 transition-transform" />
+                <span className="font-mono text-emerald-950 font-black">
+                  {connectedAccount.display_phone_number || connectedAccount.phone_number}
+                </span>
+                <span className="hidden md:inline text-[9px] bg-emerald-200/90 text-emerald-900 px-1.5 py-0.5 rounded font-extrabold uppercase tracking-wide">
+                  Connected
+                </span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setConnectModalOpen(true)}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#25D366] hover:bg-[#1ebe5d] text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Connect WhatsApp</span>
+              </button>
+            )}
             <button
               onClick={logout}
               className="p-2 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition-colors"
@@ -287,7 +326,11 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({ currentTab, setCurre
       {/* Connect WhatsApp Modal */}
       <ConnectWhatsAppModal
         isOpen={connectModalOpen}
-        onClose={() => setConnectModalOpen(false)}
+        onClose={() => {
+          setConnectModalOpen(false);
+          fetchConnectedAccount();
+        }}
+        onSuccess={() => fetchConnectedAccount()}
       />
     </div>
   );

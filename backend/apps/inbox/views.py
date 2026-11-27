@@ -264,10 +264,12 @@ class SendMessageView(views.APIView):
         if whatsapp_account.phone_number_id and str(whatsapp_account.phone_number_id).isdigit():
             meta_client = MetaCloudAPIClient(
                 phone_number_id=whatsapp_account.phone_number_id,
-                access_token=whatsapp_account.access_token,
-                waba_id=whatsapp_account.waba_id
+                access_token=whatsapp_account.access_token or getattr(settings, 'META_SYSTEM_USER_TOKEN', ''),
+                waba_id=whatsapp_account.waba_id or getattr(settings, 'META_WABA_ID', '')
             )
         else:
+            if not user.is_superadmin:
+                return Response({'error': 'Client does not have an active connected WhatsApp phone number.'}, status=status.HTTP_400_BAD_REQUEST)
             meta_client = MetaCloudAPIClient()
         infisq_client = InfisqWhatsAppClient()
 

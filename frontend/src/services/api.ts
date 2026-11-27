@@ -71,14 +71,29 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 
   if (!response.ok) {
-    let errorMsg = data?.error || data?.detail || data?.message;
+    let errorMsg =
+      data?.error ||
+      data?.detail ||
+      data?.message ||
+      (Array.isArray(data?.non_field_errors) ? data.non_field_errors[0] : data?.non_field_errors);
+
+    if (!errorMsg && data && typeof data === 'object') {
+      const firstKey = Object.keys(data)[0];
+      const val = data[firstKey];
+      if (Array.isArray(val) && val.length > 0) {
+        errorMsg = `${firstKey}: ${val[0]}`;
+      } else if (typeof val === 'string') {
+        errorMsg = val;
+      }
+    }
+
     if (!errorMsg) {
       if (typeof data === 'string' && data.includes('<html')) {
         errorMsg = `Server error (${response.status}). The backend encountered an unexpected error.`;
       } else if (typeof data === 'string') {
         errorMsg = data;
       } else {
-        errorMsg = 'API Request failed';
+        errorMsg = 'Invalid email or password. Please try again.';
       }
     }
     throw new ApiError(errorMsg, response.status, data);
