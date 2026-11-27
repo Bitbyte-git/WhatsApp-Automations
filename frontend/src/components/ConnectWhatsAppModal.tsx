@@ -16,7 +16,25 @@ import {
   ArrowRight,
   RefreshCw,
   Info,
+  ChevronDown,
 } from 'lucide-react';
+
+const COUNTRY_CODES = [
+  { code: '+91', country: 'India', flag: '🇮🇳' },
+  { code: '+971', country: 'UAE', flag: '🇦🇪' },
+  { code: '+966', country: 'Saudi Arabia', flag: '🇸🇦' },
+  { code: '+1', country: 'USA / Canada', flag: '🇺🇸' },
+  { code: '+44', country: 'UK', flag: '🇬🇧' },
+  { code: '+65', country: 'Singapore', flag: '🇸🇬' },
+  { code: '+60', country: 'Malaysia', flag: '🇲🇾' },
+  { code: '+974', country: 'Qatar', flag: '🇶🇦' },
+  { code: '+965', country: 'Kuwait', flag: '🇰🇼' },
+  { code: '+968', country: 'Oman', flag: '🇴🇲' },
+  { code: '+973', country: 'Bahrain', flag: '🇧🇭' },
+  { code: '+61', country: 'Australia', flag: '🇦🇺' },
+  { code: '+49', country: 'Germany', flag: '🇩🇪' },
+  { code: '+33', country: 'France', flag: '🇫🇷' },
+];
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -38,7 +56,9 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
 
   // WhatsApp OTP Registration State
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [countryCode, setCountryCode] = useState('+91');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [fullConnectedPhone, setFullConnectedPhone] = useState('');
   const [phoneNumberId, setPhoneNumberId] = useState('');
   const [businessName, setBusinessName] = useState(user?.client_name || user?.full_name || '');
   const [codeMethod, setCodeMethod] = useState<'SMS' | 'VOICE'>('SMS');
@@ -75,31 +95,29 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
     setIsMobileConflict(false);
     setSuccessMsg('');
 
-    let cleaned = phoneNumber.replace(/[^0-9+]/g, '');
-    if (!cleaned) {
-      setErrorMsg('Please enter your WhatsApp phone number.');
+    const digitsOnly = phoneNumber.replace(/[^0-9]/g, '');
+    if (!digitsOnly || digitsOnly.length < 7) {
+      setErrorMsg('Please enter a valid phone number (at least 7 to 12 digits).');
       return;
     }
-    if (!cleaned.startsWith('+') && cleaned.length === 10) {
-      cleaned = '+91' + cleaned;
-    }
+    const fullNumber = `${countryCode}${digitsOnly}`;
 
     setLoading(true);
     try {
       const res = await api.requestWhatsAppOtp({
-        phone_number: cleaned,
+        phone_number: fullNumber,
         business_name: businessName,
         code_method: codeMethod,
       });
 
       if (res?.success) {
-        setPhoneNumber(cleaned);
+        setFullConnectedPhone(fullNumber);
         if (res?.phone_number_id) {
           setPhoneNumberId(res.phone_number_id);
         }
         setStep(2);
         setResendCooldown(30);
-        setSuccessMsg(res.message || `6-digit OTP code sent via ${codeMethod} to ${cleaned}`);
+        setSuccessMsg(res.message || `6-digit OTP code sent via ${codeMethod} to ${fullNumber}`);
       } else {
         const rawErr = [res?.error || '', res?.instruction || '', JSON.stringify(res || '')].join(' ').toLowerCase();
         if (
@@ -158,7 +176,7 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
 
     try {
       const res = await api.verifyWhatsAppOtp({
-        phone_number: phoneNumber,
+        phone_number: fullConnectedPhone || `${countryCode}${phoneNumber.replace(/[^0-9]/g, '')}`,
         phone_number_id: phoneNumberId,
         code: otpCode.trim(),
         pin: twoStepPin.trim() || '123456',
@@ -450,43 +468,77 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
                     />
                   </div>
 
-                  {/* Phone Number */}
+                  {/* Phone Number with Separate Country Code */}
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                      WhatsApp Phone Number (with Country Code)
+                      WhatsApp Phone Number
                     </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        placeholder="+91 98765 43210"
-                        required
-                        className="w-full pl-3.5 pr-24 py-2.5 rounded-xl border border-slate-200 text-sm font-bold font-mono focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 outline-hidden transition-all"
-                      />
-                      <div className="absolute right-2 top-2 flex items-center space-x-1">
-                        <button
-                          type="button"
-                          onClick={() => setCodeMethod('SMS')}
-                          className={`px-2 py-1 rounded text-[10px] font-extrabold transition-all ${
-                            codeMethod === 'SMS'
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
+                    <div className="flex items-center space-x-2">
+                      {/* Country Code Dropdown */}
+                      <div className="relative shrink-0 w-36">
+                        <select
+                          value={countryCode}
+                          onChange={(e) => {
+                            setCountryCode(e.target.value);
+                            setErrorMsg('');
+                            setIsMobileConflict(false);
+                          }}
+                          className="w-full appearance-none pl-3 pr-8 py-2.5 rounded-xl border border-slate-200 text-xs font-bold bg-white text-slate-800 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 outline-hidden transition-all cursor-pointer shadow-xs"
                         >
-                          SMS
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setCodeMethod('VOICE')}
-                          className={`px-2 py-1 rounded text-[10px] font-extrabold transition-all ${
-                            codeMethod === 'VOICE'
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
-                        >
-                          CALL
-                        </button>
+                          {COUNTRY_CODES.map((c) => (
+                            <option key={c.code} value={c.code}>
+                              {c.flag} {c.code} ({c.country})
+                            </option>
+                          ))}
+                        </select>
+                        <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400">
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </div>
+                      </div>
+
+                      {/* Phone Number Input (Strictly Digits Only) */}
+                      <div className="relative flex-1">
+                        <input
+                          type="tel"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={15}
+                          value={phoneNumber}
+                          onChange={(e) => {
+                            setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''));
+                            setErrorMsg('');
+                            setIsMobileConflict(false);
+                          }}
+                          placeholder="e.g. 9876543210"
+                          required
+                          className="w-full pl-3.5 pr-24 py-2.5 rounded-xl border border-slate-200 text-sm font-bold font-mono text-slate-900 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 outline-hidden transition-all shadow-xs"
+                        />
+
+                        {/* SMS / CALL Switcher */}
+                        <div className="absolute right-2 top-2 flex items-center space-x-1">
+                          <button
+                            type="button"
+                            onClick={() => setCodeMethod('SMS')}
+                            className={`px-2 py-1 rounded text-[10px] font-extrabold transition-all cursor-pointer ${
+                              codeMethod === 'SMS'
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            SMS
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCodeMethod('VOICE')}
+                            className={`px-2 py-1 rounded text-[10px] font-extrabold transition-all cursor-pointer ${
+                              codeMethod === 'VOICE'
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            }`}
+                          >
+                            CALL
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -549,7 +601,7 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
                 <form onSubmit={handleVerifyOtp} className="space-y-4">
                   <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-emerald-900 text-xs flex items-center justify-between">
                     <div>
-                      <p className="font-bold">OTP sent to {phoneNumber}</p>
+                      <p className="font-bold">OTP sent to {fullConnectedPhone || phoneNumber}</p>
                       <p className="text-emerald-700">Enter the 6-digit code received via {codeMethod}.</p>
                     </div>
                     <button
@@ -651,7 +703,7 @@ export const ConnectWhatsAppModal: React.FC<ConnectWhatsAppModalProps> = ({
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-left space-y-2 text-xs">
                     <div className="flex justify-between py-1 border-b border-slate-100">
                       <span className="text-slate-500 font-medium">Connected Number:</span>
-                      <span className="font-black text-slate-900 font-mono">{phoneNumber}</span>
+                      <span className="font-black text-slate-900 font-mono">{fullConnectedPhone || phoneNumber}</span>
                     </div>
                     <div className="flex justify-between py-1 border-b border-slate-100">
                       <span className="text-slate-500 font-medium">Business Name:</span>
