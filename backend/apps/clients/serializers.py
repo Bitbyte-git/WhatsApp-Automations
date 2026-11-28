@@ -26,3 +26,17 @@ class ClientMembershipSerializer(serializers.ModelSerializer):
         model = ClientMembership
         fields = ['id', 'client', 'client_name', 'user', 'user_email', 'user_name', 'role', 'created_at']
         read_only_fields = ['id', 'created_at']
+
+
+class ClientApiKeySerializer(serializers.ModelSerializer):
+    client_name = serializers.CharField(source='client.name', read_only=True)
+
+    class Meta:
+        from apps.clients.models import ClientApiKey
+        model = ClientApiKey
+        fields = [
+            'id', 'client', 'client_name', 'project_name',
+            'key', 'template_name', 'is_active', 'last_used_at',
+            'created_at'
+        ]
+        read_only_fields = ['id', 'key', 'client', 'last_used_at', 'created_at']

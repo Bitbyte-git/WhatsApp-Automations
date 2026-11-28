@@ -193,14 +193,24 @@ class MessageTemplateViewSet(viewsets.ModelViewSet):
 
         # Authenticate via Header or active session
         api_key = request.headers.get('X-API-KEY') or request.data.get('api_key')
-        valid_api_key = getattr(settings, 'BITBYTE_API_KEY', 'bb_live_vino_fitness_auth_2026')
+        master_api_key = getattr(settings, 'BITBYTE_MASTER_API_KEY', '')
+
+        client_key_obj = None
+        if api_key:
+            from apps.clients.models import ClientApiKey
+            client_key_obj = ClientApiKey.objects.filter(key=api_key, is_active=True).select_related('client').first()
 
         user = request.user if request.user and request.user.is_authenticated else None
-        if not user and api_key != valid_api_key:
+        if not user and not client_key_obj and (not master_api_key or api_key != master_api_key):
             return Response(
-                {'error': 'Unauthorized. Provide a valid X-API-KEY header or Bearer token.'},
+                {'error': 'Unauthorized. Invalid or revoked X-API-KEY header.'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
+
+        if client_key_obj:
+            from django.utils import timezone
+            client_key_obj.last_used_at = timezone.now()
+            client_key_obj.save(update_fields=['last_used_at'])
 
         raw_phone = str(request.data.get('phone', '') or request.data.get('phone_number', '')).strip()
         digits = ''.join(ch for ch in raw_phone if ch.isdigit())
@@ -214,11 +224,17 @@ class MessageTemplateViewSet(viewsets.ModelViewSet):
 
         otp_code = str(request.data.get('otp', '') or request.data.get('otp_code', '')).strip() or f'{random.randint(100000, 999999)}'
 
-        # Get requested template or default to active approved AUTHENTICATION template
+        # Get requested template or default to client project template or active approved AUTHENTICATION template
         template_name = request.data.get('template_name', '').strip()
+        if not template_name and client_key_obj and client_key_obj.template_name:
+            template_name = client_key_obj.template_name
+
         if template_name:
             template = MessageTemplate.objects.filter(name=template_name, status='APPROVED').first()
         else:
+            template = MessageTemplate.objects.filter(category='AUTHENTICATION', status='APPROVED').order_by('-id').first()
+
+        if not template:
             template = MessageTemplate.objects.filter(category='AUTHENTICATION', status='APPROVED').order_by('-id').first()
 
         if not template:
@@ -227,7 +243,8 @@ class MessageTemplateViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        account = template.whatsapp_account or WhatsAppAccount.objects.filter(phone_number__contains='99444').first()
+        # As per SaaS architecture: Always dispatch via Admin's verified Bit Byte Master Gateway (+91 99444 95366)
+        account = WhatsAppAccount.objects.filter(phone_number__contains='99444').first() or template.whatsapp_account or WhatsAppAccount.objects.filter(connection_status='CONNECTED').first()
         if not account:
             return Response(
                 {'error': 'No connected WhatsApp Gateway account found.'},

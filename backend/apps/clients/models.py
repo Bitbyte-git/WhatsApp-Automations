@@ -66,3 +66,22 @@ class ClientMembership(TimeStampedModel):
 
     def __str__(self):
         return f"{self.user.email} - {self.client.name} ({self.role})"
+
+
+class ClientApiKey(TimeStampedModel):
+    """
+    Client developer API Keys for external integrations (e.g. websites, mobile apps).
+    All OTPs dispatched through this key route via BitByte's verified master gateway (+91 99444 95366).
+    """
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='api_keys')
+    project_name = models.CharField(max_length=150, help_text="Client application or project name")
+    key = models.CharField(max_length=80, unique=True, db_index=True)
+    template_name = models.CharField(max_length=150, blank=True, default='')
+    is_active = models.BooleanField(default=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.project_name} ({self.client.name}) - {self.key[:15]}..."

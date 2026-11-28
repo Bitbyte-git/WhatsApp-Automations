@@ -213,6 +213,12 @@ export const api = {
   sendExternalOtp: (data: { phone: string; otp?: string; template_name?: string }) =>
     api.post<any>('/otp/send/', data),
 
+  // Client Developer API Keys
+  getClientApiKeys: (params = '') => api.get<any>(`/clients/api-keys/${params ? `?${params}` : ''}`),
+  createClientApiKey: (data: { project_name: string; template_name?: string }) =>
+    api.post<any>('/clients/api-keys/', data),
+  deleteClientApiKey: (id: number) => api.del<any>(`/clients/api-keys/${id}/`),
+
   // Campaigns
   getCampaigns: (params = '') => api.get<any>(`/campaigns/${params ? `?${params}` : ''}`),
   createCampaign: (data: any) => api.post<any>('/campaigns/', data),

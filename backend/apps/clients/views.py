@@ -2,10 +2,11 @@ from rest_framework import viewsets, permissions, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
-from apps.clients.models import Client, ClientMembership
-from apps.clients.serializers import ClientSerializer, ClientMembershipSerializer
+from apps.clients.models import Client, ClientMembership, ClientApiKey
+from apps.clients.serializers import ClientSerializer, ClientMembershipSerializer, ClientApiKeySerializer
 from apps.core.permissions import IsSuperAdminUser
 from apps.billing.models import Wallet
+import secrets
 
 class ClientViewSet(viewsets.ModelViewSet):
     """
@@ -53,3 +54,52 @@ class ClientMembershipViewSet(viewsets.ModelViewSet):
         if user.client:
             return ClientMembership.objects.filter(client=user.client).select_related('client', 'user')
         return ClientMembership.objects.none()
+
+
+class ClientApiKeyViewSet(viewsets.ModelViewSet):
+    """
+    Client developer API Keys for external integrations (e.g. Vino Fitness, Athirai).
+    All OTPs dispatched through this key route via BitByte's verified master gateway (+91 99444 95366).
+    """
+    serializer_class = ClientApiKeySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superadmin:
+            client_id = self.request.query_params.get('client_id')
+            if client_id:
+                return ClientApiKey.objects.filter(client_id=client_id)
+            return ClientApiKey.objects.all().select_related('client')
+        if user.client:
+            return ClientApiKey.objects.filter(client=user.client).select_related('client')
+        return ClientApiKey.objects.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        target_client = None
+        if user.is_superadmin:
+            client_id = self.request.data.get('client_id')
+            if client_id:
+                target_client = Client.objects.filter(id=client_id).first()
+            if not target_client:
+                target_client = Client.objects.filter(name__icontains='infisq').first() or Client.objects.first()
+        else:
+            target_client = user.client
+
+        random_hex = secrets.token_hex(20)
+        api_key = f"bb_live_{random_hex}"
+        project_name = self.request.data.get('project_name', '').strip() or 'My Project'
+        template_name = self.request.data.get('template_name', '').strip()
+        if not template_name:
+            from apps.templates_manager.models import MessageTemplate
+            tmpl = MessageTemplate.objects.filter(category='AUTHENTICATION', status='APPROVED').order_by('-id').first()
+            template_name = tmpl.name if tmpl else ''
+
+        serializer.save(
+            client=target_client,
+            project_name=project_name,
+            key=api_key,
+            template_name=template_name,
+            is_active=True
+        )
