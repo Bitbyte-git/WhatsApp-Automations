@@ -181,6 +181,86 @@ class MessageTemplateViewSet(viewsets.ModelViewSet):
             'message': f'OTP {otp_code} sent to +{digits}!',
         })
 
+    @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
+    def send_external_otp(self, request):
+        """
+        Public / Developer REST API to dispatch OTP via approved AUTHENTICATION template.
+        Supports Bearer Token or X-API-KEY header (e.g. for external apps like Vino Fitness).
+        Endpoint: POST /api/templates/send_external_otp/ or /api/otp/send/
+        """
+        import random
+        from django.conf import settings
+
+        # Authenticate via Header or active session
+        api_key = request.headers.get('X-API-KEY') or request.data.get('api_key')
+        valid_api_key = getattr(settings, 'BITBYTE_API_KEY', 'bb_live_vino_fitness_auth_2026')
+
+        user = request.user if request.user and request.user.is_authenticated else None
+        if not user and api_key != valid_api_key:
+            return Response(
+                {'error': 'Unauthorized. Provide a valid X-API-KEY header or Bearer token.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        raw_phone = str(request.data.get('phone', '') or request.data.get('phone_number', '')).strip()
+        digits = ''.join(ch for ch in raw_phone if ch.isdigit())
+        if len(digits) == 10:
+            digits = f'91{digits}'
+        if len(digits) < 11:
+            return Response(
+                {'error': 'Enter a valid 10-digit WhatsApp phone number.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        otp_code = str(request.data.get('otp', '') or request.data.get('otp_code', '')).strip() or f'{random.randint(100000, 999999)}'
+
+        # Get requested template or default to active approved AUTHENTICATION template
+        template_name = request.data.get('template_name', '').strip()
+        if template_name:
+            template = MessageTemplate.objects.filter(name=template_name, status='APPROVED').first()
+        else:
+            template = MessageTemplate.objects.filter(category='AUTHENTICATION', status='APPROVED').order_by('-id').first()
+
+        if not template:
+            return Response(
+                {'error': 'No approved AUTHENTICATION template found.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        account = template.whatsapp_account or WhatsAppAccount.objects.filter(phone_number__contains='99444').first()
+        if not account:
+            return Response(
+                {'error': 'No connected WhatsApp Gateway account found.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        meta_client = MetaCloudAPIClient(
+            phone_number_id=account.phone_number_id,
+            access_token=account.access_token,
+            waba_id=account.waba_id
+        )
+        res = meta_client.send_authentication_otp_template(
+            to_phone_number=digits,
+            otp_code=otp_code,
+            template_name=template.name,
+            language_code=template.language or 'en_US'
+        )
+        if not res.get('success'):
+            return Response(
+                {'error': res.get('error', 'Failed to dispatch OTP via Meta.')},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response({
+            'success': True,
+            'message': 'OTP dispatched successfully via WhatsApp',
+            'phone_number': f'+{digits}',
+            'otp_code': otp_code,
+            'wamid': res.get('wamid', ''),
+            'template_used': template.name,
+            'gateway_number': account.phone_number,
+        })
+
     @action(detail=False, methods=['post'])
     def sync_from_meta(self, request):
         """

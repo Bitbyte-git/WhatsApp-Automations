@@ -24,6 +24,7 @@ import { ApiWebhooksView } from './views/ApiWebhooksView';
 import { SettingsView } from './views/SettingsView';
 import { AdminBusinessProfileView } from './views/AdminBusinessProfileView';
 import { ClientBusinessProfileView } from './views/ClientBusinessProfileView';
+import { AuthenticationServiceView } from './views/AuthenticationServiceView';
 
 const LoadingScreen: React.FC = () => (
   <div className="min-h-screen bg-[#F5F7F8] flex flex-col items-center justify-center">
@@ -54,6 +55,7 @@ const AdminDashboardApp: React.FC = () => {
       {currentTab === 'templates' && <TemplatesView />}
       {(currentTab === 'campaigns' || currentTab === 'marketing') && <CampaignsView initialCategory="MARKETING" onNavigate={setCurrentTab} />}
       {currentTab === 'utility' && <CampaignsView initialCategory="UTILITY" onNavigate={setCurrentTab} />}
+      {currentTab === 'authentication' && <AuthenticationServiceView />}
       {currentTab === 'service' && <CampaignsView initialCategory="SERVICE" onNavigate={setCurrentTab} />}
       {currentTab === 'message-history' && <MessageHistoryView />}
       {currentTab === 'chatbot' && <ChatbotView />}
@@ -82,6 +84,7 @@ const ClientDashboardApp: React.FC = () => {
       {currentTab === 'overview' && <ClientOverviewView onNavigate={setCurrentTab} />}
       {(currentTab === 'campaigns' || currentTab === 'marketing') && <CampaignsView initialCategory="MARKETING" onNavigate={setCurrentTab} />}
       {currentTab === 'utility' && <CampaignsView initialCategory="UTILITY" onNavigate={setCurrentTab} />}
+      {currentTab === 'authentication' && <AuthenticationServiceView />}
       {currentTab === 'service' && <CampaignsView initialCategory="SERVICE" onNavigate={setCurrentTab} />}
       {currentTab === 'chatbot' && <ChatbotView />}
       {currentTab === 'inbox' && <InboxView />}

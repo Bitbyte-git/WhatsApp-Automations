@@ -23,6 +23,7 @@ import {
   ChevronDown,
   Layers,
   History,
+  Key,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
@@ -45,7 +46,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentTab, setCurrentTab, child
   const [connectModalOpen, setConnectModalOpen] = useState(false);
 
   // Services Dropdown Toggle
-  const isServiceActive = ['marketing', 'utility', 'service', 'campaigns', 'chatbot'].includes(currentTab);
+  const isServiceActive = ['marketing', 'utility', 'authentication', 'service', 'campaigns', 'chatbot'].includes(currentTab);
   const [servicesOpen, setServicesOpen] = useState(true);
 
   useEffect(() => {
@@ -149,6 +150,27 @@ export const Layout: React.FC<LayoutProps> = ({ currentTab, setCurrentTab, child
                 >
                   <Receipt className={`w-3.5 h-3.5 mr-2.5 ${currentTab === 'utility' ? 'text-[#25D366]' : 'text-gray-400'}`} />
                   <span>Utility</span>
+                </button>
+
+                {/* 3. Authentication (OTP) */}
+                <button
+                  onClick={() => {
+                    setCurrentTab('authentication');
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    currentTab === 'authentication'
+                      ? 'bg-[#075E54] text-white shadow-2xs'
+                      : 'text-gray-600 hover:bg-emerald-50 hover:text-[#075E54]'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <Key className={`w-3.5 h-3.5 mr-2.5 ${currentTab === 'authentication' ? 'text-[#25D366]' : 'text-gray-400'}`} />
+                    <span>Authentication</span>
+                  </div>
+                  <span className={`text-[9px] uppercase px-1.5 py-0.5 rounded font-extrabold ${currentTab === 'authentication' ? 'bg-emerald-800 text-emerald-200' : 'bg-emerald-100 text-[#075E54]'}`}>
+                    OTP
+                  </span>
                 </button>
 
                 {/* 3. Service */}

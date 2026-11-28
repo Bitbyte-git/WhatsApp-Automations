@@ -22,6 +22,7 @@ import {
   Layers,
   CheckCircle2,
   Building2,
+  Key,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ConnectWhatsAppModal } from './ConnectWhatsAppModal';
@@ -64,6 +65,7 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({ currentTab, setCurre
   const serviceItems = [
     { id: 'marketing', label: 'Marketing', icon: Send, badge: 'Offers' },
     { id: 'utility', label: 'Utility', icon: Package, badge: 'Orders' },
+    { id: 'authentication', label: 'Authentication', icon: Key, badge: 'OTP' },
     { id: 'service', label: 'Service', icon: Headphones, badge: '24h' },
     { id: 'chatbot', label: 'Chatbot', icon: Bot, badge: 'AI' },
   ];
@@ -81,7 +83,7 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({ currentTab, setCurre
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
-  const isServiceActive = ['marketing', 'campaigns', 'utility', 'service', 'chatbot'].includes(currentTab);
+  const isServiceActive = ['marketing', 'campaigns', 'utility', 'authentication', 'service', 'chatbot'].includes(currentTab);
 
   const getPageTitle = (tab: string) => {
     if (tab === 'marketing' || tab === 'campaigns') return 'Marketing Broadcast Studio';

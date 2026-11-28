@@ -40,6 +40,8 @@ urlpatterns = [
     path('api/webhooks/', include('apps.webhooks.urls')),
     path('api/settings/', include('apps.settings_manager.urls')),
     path('api/media/', include('apps.media_library.urls')),
+    path('api/otp/send/', include('apps.templates_manager.urls_otp')),
+    path('api/v1/otp/send/', include('apps.templates_manager.urls_otp')),
 ]
 
 # Serve React SPA index.html for frontend routes if built

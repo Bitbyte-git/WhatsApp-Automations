@@ -210,6 +210,8 @@ export const api = {
   syncTemplatesFromMeta: (data: any) => api.post<any>('/templates/sync_from_meta/', data),
   sendTemplateOtp: (id: number, data: { phone_number: string; otp_code?: string }) =>
     api.post<any>(`/templates/${id}/send_otp/`, data),
+  sendExternalOtp: (data: { phone: string; otp?: string; template_name?: string }) =>
+    api.post<any>('/otp/send/', data),
 
   // Campaigns
   getCampaigns: (params = '') => api.get<any>(`/campaigns/${params ? `?${params}` : ''}`),
