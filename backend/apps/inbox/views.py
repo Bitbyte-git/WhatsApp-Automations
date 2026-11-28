@@ -154,7 +154,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
             else:
                 qs = Conversation.objects.all()
         elif user.client:
-            qs = Conversation.objects.filter(client=user.client)
+            qs = Conversation.objects.filter(Q(client=user.client) | Q(whatsapp_account__client=user.client))
 
         if status_filter:
             qs = qs.filter(status=status_filter.upper())
@@ -191,7 +191,7 @@ class MessageViewSet(viewsets.ReadOnlyModelViewSet):
 
         qs = Message.objects.filter(conversation_id=conversation_id)
         if not user.is_superadmin:
-            qs = qs.filter(client=user.client)
+            qs = qs.filter(Q(client=user.client) | Q(conversation__client=user.client))
         return qs.order_by('created_at')
 
 
@@ -214,6 +214,10 @@ class SendMessageView(views.APIView):
         to_phone = data.get('to_phone_number')
         content = data.get('content')
         msg_type = data.get('message_type', 'TEXT')
+        template_name = data.get('template_name')
+        language_code = data.get('language_code', 'en_US')
+        if not content and template_name:
+            content = f"Template message: {template_name}"
 
         # Resolve Conversation, Account, and Contact
         conversation = None
@@ -228,6 +232,14 @@ class SendMessageView(views.APIView):
                 return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
             whatsapp_account = conversation.whatsapp_account
             contact = conversation.contact
+
+            if not whatsapp_account:
+                whatsapp_account = WhatsAppAccount.objects.filter(
+                    Q(client=conversation.client, connection_status='CONNECTED') | Q(connection_status='CONNECTED')
+                ).first() or WhatsAppAccount.objects.first()
+                if whatsapp_account:
+                    conversation.whatsapp_account = whatsapp_account
+                    conversation.save(update_fields=['whatsapp_account'])
         elif account_id and to_phone:
             whatsapp_account = WhatsAppAccount.objects.filter(id=account_id).select_related('client').first()
             if not whatsapp_account:
@@ -278,10 +290,17 @@ class SendMessageView(views.APIView):
 
         if meta_client.is_configured:
             gateway_provider = 'META'
-            send_result = meta_client.send_text_message(
-                to_phone_number=contact.phone_number,
-                text_content=content
-            )
+            if msg_type == 'TEMPLATE' and template_name:
+                send_result = meta_client.send_template_message(
+                    to_phone_number=contact.phone_number,
+                    template_name=template_name,
+                    language_code=language_code
+                )
+            else:
+                send_result = meta_client.send_text_message(
+                    to_phone_number=contact.phone_number,
+                    text_content=content
+                )
         elif infisq_client.is_configured:
             gateway_provider = 'INFISQ'
             inf_res = infisq_client.send_text_message(
@@ -357,6 +376,9 @@ class SendMessageView(views.APIView):
             })
         else:
             err_msg = send_result.get('error', 'Unknown Meta Cloud API error')
+            err_code = send_result.get('code')
+            if err_code == 131047 or 're-engagement' in str(err_msg).lower() or '24 hours' in str(err_msg).lower():
+                err_msg = "Meta 24-Hour Customer Window Expired: More than 24 hours have passed since the customer's last inbound message. Please use an approved Template Message to re-open this conversation."
             # Save failed message record for auditing
             failed_message = Message.objects.create(
                 conversation=conversation,

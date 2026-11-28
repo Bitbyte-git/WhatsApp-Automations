@@ -402,20 +402,12 @@ export const Layout: React.FC<LayoutProps> = ({ currentTab, setCurrentTab, child
               />
             </div>
 
-            {/* Superadmin Tenant Selector */}
+            {/* Superadmin Platform Indicator (No client impersonation switcher) */}
             {user?.role === 'SUPERADMIN' && (
-              <div className="hidden sm:flex items-center space-x-2">
-                <select
-                  value={activeTenantId || ''}
-                  onChange={(e) => setActiveTenant(e.target.value || null)}
-                  className="px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-[#075E54]"
-                >
-                  <option value="">All Tenants (Global)</option>
-                  {clients.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
+              <span className="hidden sm:inline-flex items-center px-3 py-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700">
+                <Building className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
+                <span>BitByte Master Admin</span>
+              </span>
             )}
 
             {user?.role !== 'SUPERADMIN' && (

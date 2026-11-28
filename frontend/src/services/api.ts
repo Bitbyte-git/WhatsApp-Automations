@@ -139,6 +139,9 @@ export const api = {
     accountId
       ? api.post<any>(`/whatsapp/accounts/${accountId}/business_profile/`, data)
       : api.post<any>('/whatsapp/accounts/my_business_profile/', data),
+  requestNameChangeOtp: () => api.post<any>('/whatsapp/accounts/request_name_change_otp/'),
+  verifyAndUpdateBusinessName: (otp: string, new_business_name: string) =>
+    api.post<any>('/whatsapp/accounts/verify_and_update_business_name/', { otp, new_business_name }),
 
   // Inbox & Contacts
   getContacts: (params = '') => api.get<any>(`/inbox/contacts/${params ? `?${params}` : ''}`),
