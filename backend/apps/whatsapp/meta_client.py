@@ -722,15 +722,35 @@ class MetaCloudAPIClient:
     def upload_profile_picture_handle(self, file_bytes, mime_type='image/jpeg', app_id=None):
         """
         Uploads image binary to Meta Graph API Resumable Upload to generate a profile_picture_handle.
+        Meta strictly requires a JPEG of at least 192x192 pixels.
         """
         if not self.access_token:
             return {'success': False, 'error': 'Missing Meta Access Token.'}
 
-        target_app = app_id or 'app'
+        # Auto-convert PNG/WebP to compliant JPEG of at least 640x640 using PIL
+        clean_bytes = file_bytes
+        try:
+            import io
+            from PIL import Image
+            img = Image.open(io.BytesIO(file_bytes))
+            if img.mode in ('RGBA', 'P', 'LA'):
+                img = img.convert('RGB')
+            # Ensure minimum 192x192
+            w, h = img.size
+            if w < 192 or h < 192:
+                img = img.resize((max(w, 640), max(h, 640)), Image.Resampling.LANCZOS)
+            out_buf = io.BytesIO()
+            img.save(out_buf, format='JPEG', quality=95)
+            clean_bytes = out_buf.getvalue()
+        except Exception as img_err:
+            pass  # fallback to raw bytes if PIL fails
+
+        target_app = app_id or getattr(settings, 'META_APP_ID', None) or '4629092147359556'
         session_url = f"{self.base_url}/{target_app}/uploads"
         params = {
-            'file_length': len(file_bytes),
-            'file_type': mime_type
+            'file_name': 'avatar.jpg',
+            'file_length': len(clean_bytes),
+            'file_type': 'image/jpeg'
         }
         try:
             init_res = requests.post(session_url, params=params, headers=self._get_headers(), timeout=15)
@@ -744,7 +764,7 @@ class MetaCloudAPIClient:
                 'Authorization': f'OAuth {self.access_token}',
                 'file_offset': '0'
             }
-            upload_res = requests.post(upload_url, data=file_bytes, headers=headers, timeout=30)
+            upload_res = requests.post(upload_url, data=clean_bytes, headers=headers, timeout=30)
             upload_data = upload_res.json()
             handle = upload_data.get('h')
             if handle:

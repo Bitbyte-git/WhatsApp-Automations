@@ -193,8 +193,23 @@ Scalable technology engineered to grow your business.`;
         );
       } catch {}
 
+      let fileToSend = profilePicFile;
+      if (!fileToSend && profilePicPreview && profilePicPreview.startsWith('data:image/')) {
+        try {
+          const arr = profilePicPreview.split(',');
+          const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
+          const bstr = atob(arr[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+          }
+          fileToSend = new File([u8arr], 'avatar.jpg', { type: mime });
+        } catch {}
+      }
+
       let res;
-      if (profilePicFile) {
+      if (fileToSend) {
         const formData = new FormData();
         formData.append('about', about);
         formData.append('address', address);
@@ -202,7 +217,7 @@ Scalable technology engineered to grow your business.`;
         formData.append('email', email);
         formData.append('vertical', vertical);
         websites.forEach((w) => formData.append('websites', w));
-        formData.append('profile_picture', profilePicFile);
+        formData.append('profile_picture', fileToSend);
         res = await api.updateBusinessProfile(formData, selectedAccountId);
       } else {
         const payload = {
