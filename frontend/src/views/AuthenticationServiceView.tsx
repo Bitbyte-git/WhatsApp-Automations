@@ -24,7 +24,7 @@ export const AuthenticationServiceView: React.FC = () => {
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
-  const [activeCodeTab, setActiveCodeTab] = useState<'curl' | 'js' | 'python' | 'php'>('curl');
+  const [activeCodeTab, setActiveCodeTab] = useState<'curl' | 'express' | 'js' | 'python' | 'php'>('express');
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedEndpoint, setCopiedEndpoint] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -32,7 +32,8 @@ export const AuthenticationServiceView: React.FC = () => {
   const [loadingTemplates, setLoadingTemplates] = useState(true);
 
   const apiKey = 'bb_live_vino_fitness_auth_2026';
-  const apiEndpoint = `${window.location.origin}/api/otp/send/`;
+  const backendBase = (import.meta.env.VITE_API_BASE_URL || 'https://whatsapp-automations-jy7s.onrender.com/api').replace(/\/$/, '');
+  const apiEndpoint = `${backendBase}/otp/send/`;
 
   const loadAuthTemplates = async () => {
     setLoadingTemplates(true);
@@ -103,6 +104,52 @@ export const AuthenticationServiceView: React.FC = () => {
     "phone": "${cleanPhone}",
     "otp": "${sampleOtp}"
   }'`;
+
+      case 'express':
+        return `// Node.js + Express.js Backend Route (Vino Fitness Server)
+const express = require('express');
+const axios = require('axios');
+const app = express();
+app.use(express.json());
+
+// POST /api/auth/send-whatsapp-otp
+app.post('/api/auth/send-whatsapp-otp', async (req, res) => {
+  const { phone } = req.body; // e.g. "${cleanPhone}"
+  const otpCode = Math.floor(100000 + Math.random() * 900000).toString(); // Generates 6-digit OTP
+
+  try {
+    const waResponse = await axios.post(
+      '${apiEndpoint}',
+      {
+        phone: phone,
+        otp: otpCode
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-KEY': '${apiKey}'
+        }
+      }
+    );
+
+    // TODO: Store otpCode in your DB/Redis for 10 minutes to verify on submit
+    // await db.saveOtp(phone, otpCode);
+
+    return res.status(200).json({
+      success: true,
+      message: 'OTP delivered to your WhatsApp number!',
+      wamid: waResponse.data.wamid
+    });
+  } catch (error) {
+    console.error('WhatsApp OTP Error:', error.response?.data || error.message);
+    return res.status(500).json({
+      success: false,
+      error: error.response?.data?.error || 'Failed to send WhatsApp OTP'
+    });
+  }
+});
+
+app.listen(3000, () => console.log('Server running on http://localhost:3000'));`;
 
       case 'js':
         return `// JavaScript / Node.js (Fetch API)
@@ -424,18 +471,18 @@ echo $response;
 
               {/* Language Tabs */}
               <div className="flex items-center space-x-1 bg-gray-100 p-1 rounded-xl">
-                {(['curl', 'js', 'python', 'php'] as const).map((tab) => (
+                {(['curl', 'express', 'js', 'python', 'php'] as const).map((tab) => (
                   <button
                     key={tab}
                     type="button"
                     onClick={() => setActiveCodeTab(tab)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                       activeCodeTab === tab
                         ? 'bg-[#075E54] text-white shadow-xs'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
-                    {tab === 'js' ? 'JavaScript' : tab === 'curl' ? 'cURL' : tab.toUpperCase()}
+                    {tab === 'express' ? 'Express.js' : tab === 'js' ? 'Node Fetch' : tab === 'curl' ? 'cURL' : tab.toUpperCase()}
                   </button>
                 ))}
               </div>
