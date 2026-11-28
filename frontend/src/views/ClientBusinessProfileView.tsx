@@ -5,7 +5,6 @@ import {
   Globe,
   Mail,
   MapPin,
-  Clock,
   Briefcase,
   CheckCircle2,
   RefreshCw,
@@ -49,7 +48,6 @@ export const ClientBusinessProfileView: React.FC = () => {
   const [email, setEmail] = useState(user?.email || '');
   const [website1, setWebsite1] = useState('');
   const [website2, setWebsite2] = useState('');
-  const [businessHours, setBusinessHours] = useState('Open 24 hours');
   const [customCategory, setCustomCategory] = useState('');
 
   // Direct Inline Name Edit State
@@ -124,7 +122,6 @@ export const ClientBusinessProfileView: React.FC = () => {
         if (parsed.businessName) setBusinessName(parsed.businessName);
         if (parsed.about) setAbout(parsed.about);
         if (parsed.description) setDescription(parsed.description);
-        if (parsed.businessHours) setBusinessHours(parsed.businessHours);
         if (parsed.vertical) setVertical(parsed.vertical);
         if (parsed.customCategory) setCustomCategory(parsed.customCategory);
         if (parsed.address) setAddress(parsed.address);
@@ -165,12 +162,7 @@ export const ClientBusinessProfileView: React.FC = () => {
       if (website1.trim()) websites.push(website1.trim());
       if (website2.trim()) websites.push(website2.trim());
 
-      // Strip any existing "🕒 Hours:" line from description before formatting
-      let cleanDesc = description.replace(/\n*🕒\s*Hours:.*$/i, '').trim();
-      let finalDescription = cleanDesc;
-      if (businessHours) {
-        finalDescription = `${cleanDesc}\n\n🕒 Hours: ${businessHours}`;
-      }
+      const finalDescription = description.trim();
 
       // Permanently persist to localStorage
       try {
@@ -179,8 +171,7 @@ export const ClientBusinessProfileView: React.FC = () => {
           JSON.stringify({
             businessName,
             about,
-            description: cleanDesc,
-            businessHours,
+            description: finalDescription,
             vertical,
             customCategory,
             address,
@@ -608,31 +599,15 @@ export const ClientBusinessProfileView: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="font-semibold text-gray-700 block mb-1">Customer Support Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="support@mybusiness.com"
-                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 text-xs font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-gray-700 block mb-1">Business Hours</label>
-                <select
-                  value={businessHours}
-                  onChange={(e) => setBusinessHours(e.target.value)}
-                  className="w-full px-3.5 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 bg-white text-xs"
-                >
-                  <option value="Open 24 hours">Open 24 hours</option>
-                  <option value="Mon - Sat (9:00 AM - 9:00 PM)">Mon - Sat (9:00 AM - 9:00 PM)</option>
-                  <option value="Mon - Fri (9:00 AM - 6:00 PM)">Mon - Fri (9:00 AM - 6:00 PM)</option>
-                  <option value="Open Daily (10:00 AM - 10:00 PM)">Open Daily (10:00 AM - 10:00 PM)</option>
-                </select>
-              </div>
+            <div>
+              <label className="font-semibold text-gray-700 block mb-1">Customer Support Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="support@mybusiness.com"
+                className="w-full px-3.5 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 text-xs font-mono"
+              />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -736,10 +711,6 @@ export const ClientBusinessProfileView: React.FC = () => {
                 {getVerticalLabel(vertical)}
               </p>
 
-              <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 mt-1">
-                <span>{businessHours}</span>
-              </div>
-
               {/* 3 Action Buttons (Catalog, Add, Share) */}
               <div className="flex items-center justify-center gap-4 mt-4 pt-3 border-t border-gray-100 w-full">
                 <button
@@ -793,15 +764,6 @@ export const ClientBusinessProfileView: React.FC = () => {
                   )}
                 </div>
               )}
-
-              {/* Working Hours */}
-              <div className="flex items-start gap-3 pb-3 border-b border-gray-100">
-                <Clock className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
-                <div>
-                  <p className="font-semibold text-emerald-700">Open now</p>
-                  <p className="text-gray-500 text-[11px]">{businessHours}</p>
-                </div>
-              </div>
 
               {/* Address */}
               {address && (

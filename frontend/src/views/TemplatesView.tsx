@@ -207,7 +207,14 @@ export const TemplatesView: React.FC = () => {
         api.getWhatsAppAccounts(activeTenantId ? `client_id=${activeTenantId}` : ''),
       ]);
       setTemplates(tmplRes.results || []);
-      setAccounts(accRes.results || []);
+      const accList: any[] = accRes.results || [];
+      setAccounts(accList);
+      if (accList.length > 0) {
+        const preferred = !activeTenantId 
+          ? (accList.find((a: any) => a.phone_number?.includes('99444')) || accList[0])
+          : accList[0];
+        if (preferred) setAccountId(String(preferred.id));
+      }
     } catch {
       setTemplates([]);
     } finally {
@@ -899,23 +906,6 @@ export const TemplatesView: React.FC = () => {
                         <option value="es">Spanish (es)</option>
                       </select>
                     </div>
-
-                    {accounts.length > 1 && (
-                      <div className="sm:col-span-2 pt-2 border-t border-gray-100">
-                        <label className="block font-semibold text-gray-700 mb-1">WhatsApp WABA Account *</label>
-                        <select
-                          value={accountId || accounts[0]?.id}
-                          onChange={(e) => setAccountId(e.target.value)}
-                          className="w-full px-3.5 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 bg-white text-xs"
-                        >
-                          {accounts.map((acc) => (
-                            <option key={acc.id} value={acc.id}>
-                              {acc.name || acc.phone_number} (WABA ID: {acc.waba_id})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -1302,11 +1292,18 @@ export const TemplatesView: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <ChevronLeft className="w-4 h-4 text-white/90" />
                         <div className="w-7 h-7 rounded-full bg-emerald-700 border border-white/20 flex items-center justify-center text-white text-xs font-bold shadow-xs">
-                          {accounts[0]?.name ? accounts[0].name.charAt(0).toUpperCase() : 'B'}
+                          {(() => {
+                            const curAcc = accounts.find((a) => String(a.id) === String(accountId)) || accounts[0];
+                            const name = curAcc?.business_name || curAcc?.name || 'WhatsApp Business';
+                            return name.charAt(0).toUpperCase();
+                          })()}
                         </div>
                         <div className="leading-tight">
                           <p className="font-semibold text-xs flex items-center gap-1 text-white">
-                            {accounts[0]?.name || 'AK Shop'}
+                            {(() => {
+                              const curAcc = accounts.find((a) => String(a.id) === String(accountId)) || accounts[0];
+                              return curAcc?.business_name || curAcc?.name || 'WhatsApp Business';
+                            })()}
                             <CheckCircle className="w-3 h-3 text-emerald-300 fill-emerald-300" />
                           </p>
                           <p className="text-[9px] text-emerald-200">online</p>

@@ -29,8 +29,14 @@ class MessageTemplateViewSet(viewsets.ModelViewSet):
             if client_id:
                 qs = MessageTemplate.objects.filter(client_id=client_id)
             else:
-                qs = MessageTemplate.objects.all()
+                # Admin views Admin's own templates (strictly linked to admin's master account or admin client)
+                admin_acc = WhatsAppAccount.objects.filter(phone_number__contains='99444').first()
+                if admin_acc:
+                    qs = MessageTemplate.objects.filter(models.Q(whatsapp_account=admin_acc) | models.Q(client=admin_acc.client)).exclude(client__id=4)
+                else:
+                    qs = MessageTemplate.objects.filter(client__isnull=True)
         elif user.client:
+            # Client CAN ONLY see their own templates! NEVER Admin or other client templates!
             qs = MessageTemplate.objects.filter(client=user.client)
 
         if category:
@@ -48,23 +54,26 @@ class MessageTemplateViewSet(viewsets.ModelViewSet):
         validated = serializer.validated_data
 
         user = request.user
-        account = validated.get('whatsapp_account')
-        if account and not str(account.waba_id or '').isdigit():
-            account = None
-        if not account and user.client:
+        account = None
+        account_id = request.data.get('whatsapp_account') or request.data.get('whatsapp_account_id')
+
+        if user.is_superadmin:
+            client_id = request.data.get('client') or request.query_params.get('client_id')
+            if client_id:
+                target_client = Client.objects.filter(id=client_id).first()
+                account = WhatsAppAccount.objects.filter(id=account_id, client_id=client_id).first() or WhatsAppAccount.objects.filter(client_id=client_id, connection_status='CONNECTED').first()
+            else:
+                # Admin creating Admin template: ALWAYS strictly use Admin's master account (+91 99444 95366)
+                account = WhatsAppAccount.objects.filter(phone_number__contains='99444').first() or WhatsAppAccount.objects.filter(connection_status='CONNECTED').first()
+                target_client = account.client if account else None
+        elif user.client:
+            # Strictly the Client's own connected account - NEVER allow picking Admin's account
+            target_client = user.client
             account = WhatsAppAccount.objects.filter(client=user.client, connection_status='CONNECTED').first() or WhatsAppAccount.objects.filter(client=user.client).first()
-            if account and not str(account.waba_id or '').isdigit():
-                account = None
-        if not account:
-            client_obj = validated.get('client')
-            if client_obj:
-                account = WhatsAppAccount.objects.filter(client=client_obj, connection_status='CONNECTED').first() or WhatsAppAccount.objects.filter(client=client_obj).first()
-            if not account or not str(account.waba_id or '').isdigit():
-                account = WhatsAppAccount.objects.filter(connection_status='CONNECTED').exclude(waba_id__startswith='infisq').first() or WhatsAppAccount.objects.filter(connection_status='CONNECTED').first()
 
         if not account:
             return Response(
-                {'error': 'No connected WhatsApp Account found. Please connect a WhatsApp Gateway first.'},
+                {'error': 'No connected WhatsApp Account found for this user.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -98,9 +107,12 @@ class MessageTemplateViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        if not target_client and account:
+            target_client = account.client
+
         instance = serializer.save(
             name=safe_name,
-            client=account.client,
+            client=target_client,
             whatsapp_account=account,
             meta_template_id=meta_res.get('meta_template_id', ''),
             status=meta_res.get('status', 'PENDING'),

@@ -23,7 +23,15 @@ class WhatsAppAccountViewSet(viewsets.ModelViewSet):
             client_id = self.request.query_params.get('client_id')
             if client_id:
                 return WhatsAppAccount.objects.filter(client_id=client_id).select_related('client')
-            return WhatsAppAccount.objects.all().select_related('client')
+            # For admin master view, order Admin master gateway (+91 99444 95366) first
+            from django.db.models import Case, When, Value, IntegerField
+            return WhatsAppAccount.objects.all().annotate(
+                is_admin_master=Case(
+                    When(phone_number__contains='99444', then=Value(0)),
+                    default=Value(1),
+                    output_field=IntegerField()
+                )
+            ).order_by('is_admin_master', 'id').select_related('client')
         if user.client:
             return WhatsAppAccount.objects.filter(client=user.client).select_related('client')
         return WhatsAppAccount.objects.none()
