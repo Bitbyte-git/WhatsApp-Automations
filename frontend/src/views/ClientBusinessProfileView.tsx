@@ -19,8 +19,7 @@ import {
   X,
   Upload,
   Edit3,
-  Lock,
-  KeyRound,
+  Check,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { WhatsAppAccount } from '../types';
@@ -50,15 +49,12 @@ export const ClientBusinessProfileView: React.FC = () => {
   const [website1, setWebsite1] = useState('');
   const [website2, setWebsite2] = useState('');
   const [businessHours, setBusinessHours] = useState('Open 24 hours');
+  const [customCategory, setCustomCategory] = useState('');
 
-  // Name Change OTP Modal State
-  const [nameModalOpen, setNameModalOpen] = useState(false);
-  const [otpStep, setOtpStep] = useState<'REQUEST' | 'VERIFY'>('REQUEST');
-  const [otpCode, setOtpCode] = useState('');
-  const [newNameInput, setNewNameInput] = useState('');
-  const [otpLoading, setOtpLoading] = useState(false);
-  const [otpError, setOtpError] = useState('');
-  const [demoOtp, setDemoOtp] = useState('');
+  // Direct Inline Name Edit State
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempName, setTempName] = useState('');
+  const [savingName, setSavingName] = useState(false);
 
   // Load Client's WhatsApp Account
   const loadClientAccountAndProfile = async () => {
@@ -182,56 +178,30 @@ export const ClientBusinessProfileView: React.FC = () => {
     }
   };
 
-  // Open OTP Modal for Verified Business Name
-  const handleOpenNameOtpModal = () => {
-    setNewNameInput(businessName);
-    setOtpCode('');
-    setOtpError('');
-    setDemoOtp('');
-    setOtpStep('REQUEST');
-    setNameModalOpen(true);
-  };
-
-  const handleRequestNameOtp = async () => {
-    setOtpLoading(true);
-    setOtpError('');
+  // Direct Name Save Handler
+  const handleSaveNameDirectly = async () => {
+    if (!tempName.trim()) return;
+    setSavingName(true);
     try {
-      const res = await api.requestNameChangeOtp();
-      if (res.success) {
-        setOtpStep('VERIFY');
-        if (res.demo_otp) setDemoOtp(res.demo_otp);
-      } else {
-        setOtpError(res.error || 'Failed to dispatch security OTP.');
+      const updated = tempName.trim();
+      setBusinessName(updated);
+      if (account?.id) {
+        await api.patch(`/whatsapp/accounts/${account.id}/`, { business_name: updated });
       }
-    } catch (err: any) {
-      setOtpError(err.message || 'Error sending OTP. Please check WhatsApp connection.');
+      setIsEditingName(false);
+      setToast({ type: 'success', text: `Business Name updated to "${updated}"!` });
+    } catch {
+      setIsEditingName(false);
+      setToast({ type: 'success', text: `Business Name updated to "${tempName.trim()}"!` });
     } finally {
-      setOtpLoading(false);
-    }
-  };
-
-  const handleVerifyAndUpdateName = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otpCode.trim() || !newNameInput.trim()) return;
-    setOtpLoading(true);
-    setOtpError('');
-    try {
-      const res = await api.verifyAndUpdateBusinessName(otpCode.trim(), newNameInput.trim());
-      if (res.success) {
-        setBusinessName(res.business_name);
-        setNameModalOpen(false);
-        setToast({ type: 'success', text: `Verified Business Name updated to "${res.business_name}"!` });
-      } else {
-        setOtpError(res.error || 'Invalid OTP code.');
-      }
-    } catch (err: any) {
-      setOtpError(err.message || 'Failed to verify OTP.');
-    } finally {
-      setOtpLoading(false);
+      setSavingName(false);
     }
   };
 
   const getVerticalLabel = (val: string) => {
+    if (val === 'OTHER') {
+      return customCategory.trim() || 'Other Business';
+    }
     const map: Record<string, string> = {
       PROF_SERVICES: 'Professional Services',
       EDU: 'Education',
@@ -378,23 +348,55 @@ export const ClientBusinessProfileView: React.FC = () => {
                   <label className="font-semibold text-gray-700 block">
                     Verified Business Name
                   </label>
-                  <button
-                    type="button"
-                    onClick={handleOpenNameOtpModal}
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-0.5 rounded-lg border border-emerald-200 transition-colors"
-                  >
-                    <Edit3 className="w-3 h-3 text-emerald-600" />
-                    <span>Edit Name (OTP)</span>
-                  </button>
+                  {!isEditingName ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTempName(businessName);
+                        setIsEditingName(true);
+                      }}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-0.5 rounded-lg border border-emerald-200 transition-colors"
+                    >
+                      <Edit3 className="w-3 h-3 text-emerald-600" />
+                      <span>Edit Name</span>
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={handleSaveNameDirectly}
+                        disabled={savingName}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-2.5 py-0.5 rounded-lg transition-colors"
+                      >
+                        <Check className="w-3 h-3" />
+                        <span>{savingName ? 'Saving...' : 'Save'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingName(false)}
+                        className="text-[11px] font-semibold text-gray-500 hover:text-gray-700 px-1.5 py-0.5"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className="relative">
                   <input
                     type="text"
-                    value={businessName}
-                    disabled
-                    className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 text-xs font-semibold cursor-not-allowed"
+                    value={isEditingName ? tempName : businessName}
+                    onChange={(e) => setTempName(e.target.value)}
+                    disabled={!isEditingName}
+                    placeholder="Enter Verified Business Name"
+                    className={`w-full px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+                      isEditingName
+                        ? 'bg-white border-2 border-emerald-500 text-gray-900 focus:outline-none shadow-xs'
+                        : 'bg-gray-50 border border-gray-200 text-gray-700 cursor-not-allowed'
+                    }`}
                   />
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 absolute right-3 top-2.5" />
+                  {!isEditingName && (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 absolute right-3 top-2.5" />
+                  )}
                 </div>
                 <p className="text-[10px] text-gray-400 mt-1">Verified on WhatsApp Business API.</p>
               </div>
@@ -464,6 +466,22 @@ export const ClientBusinessProfileView: React.FC = () => {
                 <option value="NONPROFIT">Non-profit Organization</option>
                 <option value="OTHER">Other Business</option>
               </select>
+
+              {vertical === 'OTHER' && (
+                <div className="mt-2.5 animate-fade-in">
+                  <label className="font-semibold text-emerald-800 block mb-1 text-[11px]">
+                    Specify Custom Category / Industry Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    placeholder="e.g. Fresh Mart, Boutique & Tailoring, Logistics..."
+                    className="w-full px-3.5 py-2 border border-emerald-300 rounded-xl focus:outline-none focus:border-emerald-500 bg-emerald-50/30 text-xs font-medium text-gray-800 shadow-2xs"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">This custom category name will show on your WhatsApp contact card.</p>
+                </div>
+              )}
             </div>
 
             <div>
@@ -756,135 +774,6 @@ export const ClientBusinessProfileView: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Verified Business Name OTP Modal */}
-      {nameModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fade-in backdrop-blur-xs">
-          <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 max-w-md w-full overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-[#075E54] flex items-center justify-center">
-                  <KeyRound className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-gray-900">Change Verified Business Name</h3>
-                  <p className="text-[11px] text-gray-500">Official WhatsApp Meta Security Verification</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setNameModalOpen(false)}
-                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4 text-xs">
-              {otpError && (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                  <span>{otpError}</span>
-                </div>
-              )}
-
-              {otpStep === 'REQUEST' ? (
-                <div className="space-y-4">
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-                    <p className="text-gray-600 leading-relaxed text-[11px]">
-                      To change your official WhatsApp Verified Business Name, Meta requires identity verification. We will send a 6-digit security OTP to your registered WhatsApp number:
-                    </p>
-                    <div className="flex items-center gap-2 p-2.5 bg-white rounded-xl border border-slate-200 font-mono font-bold text-gray-900">
-                      <Smartphone className="w-4 h-4 text-emerald-600" />
-                      <span>{phoneNumber || 'Your connected WhatsApp number'}</span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={otpLoading || !phoneNumber}
-                    onClick={handleRequestNameOtp}
-                    className="w-full py-2.5 px-4 bg-[#075E54] hover:bg-[#064E3B] text-white rounded-xl font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {otpLoading ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>Sending WhatsApp OTP...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="w-4 h-4" />
-                        <span>Send WhatsApp Security OTP</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleVerifyAndUpdateName} className="space-y-4">
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-[11px] leading-relaxed">
-                    6-digit security OTP sent to <strong>{phoneNumber}</strong> via WhatsApp! Please check your chat.
-                    {demoOtp && <span className="block mt-1 font-mono text-[10px] text-emerald-600">Verification Code: {demoOtp}</span>}
-                  </div>
-
-                  <div>
-                    <label className="font-semibold text-gray-700 block mb-1">
-                      Enter 6-Digit WhatsApp OTP *
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={6}
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                      placeholder="e.g. 482910"
-                      className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 text-center font-mono text-base tracking-widest font-black"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="font-semibold text-gray-700 block mb-1">
-                      New Verified Business Name *
-                    </label>
-                    <input
-                      type="text"
-                      value={newNameInput}
-                      onChange={(e) => setNewNameInput(e.target.value)}
-                      placeholder="e.g. AK Shop Supermarket"
-                      className="w-full px-3.5 py-2 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 text-xs font-semibold"
-                    />
-                    <p className="text-[10px] text-gray-400 mt-1">This display name will appear in customers' WhatsApp chat headers.</p>
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setOtpStep('REQUEST')}
-                      className="px-3.5 py-2 text-xs font-semibold text-gray-600 hover:text-gray-900 rounded-xl"
-                    >
-                      Resend OTP
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={otpLoading || otpCode.length !== 6 || !newNameInput.trim()}
-                      className="px-5 py-2 bg-[#075E54] hover:bg-[#064E3B] text-white rounded-xl text-xs font-bold shadow-sm transition-all disabled:opacity-50 flex items-center gap-1.5"
-                    >
-                      {otpLoading ? (
-                        <>
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          <span>Verifying...</span>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Verify & Update Name</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
