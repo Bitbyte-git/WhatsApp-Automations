@@ -67,6 +67,94 @@ class WhatsAppAccountViewSet(viewsets.ModelViewSet):
         else:
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=True, methods=['get', 'post'], url_path='business_profile')
+    def business_profile(self, request, pk=None):
+        """
+        Manages the live Meta WhatsApp Business Profile for this specific WhatsAppAccount.
+        GET: Returns about, address, description, email, profile_picture_url, websites, vertical.
+        POST: Updates fields on Meta servers directly.
+        """
+        account = self.get_object()
+        client = MetaCloudAPIClient(
+            phone_number_id=account.phone_number_id,
+            access_token=account.access_token or getattr(settings, 'META_SYSTEM_USER_TOKEN', ''),
+            waba_id=account.waba_id or getattr(settings, 'META_WABA_ID', '')
+        )
+
+        if not client.is_configured:
+            return Response({
+                'success': False,
+                'error': 'WhatsApp integration is not configured. Missing Meta credentials or Phone Number ID.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if request.method == 'GET':
+            res = client.get_business_profile()
+            if res.get('success'):
+                profile_data = res.get('profile', {})
+                profile_data['business_name'] = account.business_name
+                profile_data['phone_number'] = account.phone_number
+                return Response({'success': True, 'profile': profile_data, 'account_id': account.id})
+            return Response(res, status=status.HTTP_400_BAD_REQUEST)
+
+        elif request.method == 'POST':
+            data = request.data
+            about = data.get('about')
+            address = data.get('address')
+            description = data.get('description')
+            email = data.get('email')
+            vertical = data.get('vertical')
+            websites = data.get('websites')
+
+            # Handle profile picture upload if provided
+            profile_picture_handle = None
+            pic_file = request.FILES.get('profile_picture')
+            if pic_file:
+                app_id = getattr(settings, 'META_APP_ID', None)
+                pic_bytes = pic_file.read()
+                upload_res = client.upload_profile_picture_handle(pic_bytes, pic_file.content_type, app_id=app_id)
+                if upload_res.get('success'):
+                    profile_picture_handle = upload_res.get('handle')
+
+            up_res = client.update_business_profile(
+                about=about,
+                address=address,
+                description=description,
+                email=email,
+                vertical=vertical,
+                websites=websites,
+                profile_picture_handle=profile_picture_handle
+            )
+            if up_res.get('success'):
+                # Refresh profile from Meta
+                refreshed = client.get_business_profile().get('profile', {})
+                refreshed['business_name'] = account.business_name
+                refreshed['phone_number'] = account.phone_number
+                return Response({
+                    'success': True,
+                    'message': 'WhatsApp Business Profile synced to Meta Cloud API successfully!',
+                    'profile': refreshed
+                })
+            return Response(up_res, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['get', 'post'], url_path='my_business_profile')
+    def my_business_profile(self, request):
+        user = request.user
+        account = None
+        if user.is_superadmin:
+            client_id = request.query_params.get('client_id') or request.data.get('client_id')
+            if client_id:
+                account = WhatsAppAccount.objects.filter(client_id=client_id).first()
+            if not account:
+                account = WhatsAppAccount.objects.filter(connection_status='CONNECTED').first() or WhatsAppAccount.objects.first()
+        elif user.client:
+            account = WhatsAppAccount.objects.filter(client=user.client, connection_status='CONNECTED').first() or WhatsAppAccount.objects.filter(client=user.client).first()
+
+        if not account:
+            return Response({'success': False, 'error': 'No connected WhatsApp Account found for this user.'}, status=status.HTTP_404_NOT_FOUND)
+
+        self.kwargs['pk'] = account.pk
+        return self.business_profile(request, pk=account.pk)
+
     @action(detail=False, methods=['post'], url_path='request_otp')
     def request_otp(self, request):
         """

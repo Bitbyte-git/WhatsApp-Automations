@@ -301,6 +301,13 @@ export const Layout: React.FC<LayoutProps> = ({ currentTab, setCurrentTab, child
                 <span>WhatsApp Gateways</span>
               </button>
               <button
+                onClick={() => { setCurrentTab('business-profile'); setMobileMenuOpen(false); }}
+                className={`w-full flex items-center px-3.5 py-2 rounded-lg text-xs font-medium ${currentTab === 'business-profile' ? 'bg-[#075E54] text-white' : 'text-gray-600 hover:bg-slate-50'}`}
+              >
+                <Building2 className="w-4 h-4 mr-2.5 text-gray-400" />
+                <span>Business Profile</span>
+              </button>
+              <button
                 onClick={() => { setCurrentTab('templates'); setMobileMenuOpen(false); }}
                 className={`w-full flex items-center px-3.5 py-2 rounded-lg text-xs font-medium ${currentTab === 'templates' ? 'bg-[#075E54] text-white' : 'text-gray-600 hover:bg-slate-50'}`}
               >
@@ -561,6 +568,13 @@ export const Layout: React.FC<LayoutProps> = ({ currentTab, setCurrentTab, child
                 >
                   <Wallet className="w-4 h-4 mr-3" />
                   <span>Meta Balance</span>
+                </button>
+                <button
+                  onClick={() => { setCurrentTab('business-profile'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center px-3 py-2 rounded-xl text-sm font-semibold ${currentTab === 'business-profile' ? 'bg-[#075E54] text-white' : 'text-slate-700'}`}
+                >
+                  <Building2 className="w-4 h-4 mr-3" />
+                  <span>Business Profile</span>
                 </button>
                 <button
                   onClick={() => { setCurrentTab('analytics'); setMobileMenuOpen(false); }}

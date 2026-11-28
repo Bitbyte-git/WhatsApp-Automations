@@ -21,6 +21,7 @@ import {
   ChevronRight,
   Layers,
   CheckCircle2,
+  Building2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ConnectWhatsAppModal } from './ConnectWhatsAppModal';
@@ -73,6 +74,7 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({ currentTab, setCurre
     { id: 'message-history', label: 'Message History', icon: History },
     { id: 'contacts', label: 'Contacts', icon: Users },
     { id: 'templates', label: 'Meta Templates', icon: FileCode },
+    { id: 'business-profile', label: 'Business Profile', icon: Building2 },
     { id: 'billing', label: 'Wallet & Plans', icon: Wallet },
     { id: 'transactions', label: 'Transactions', icon: Receipt },
     { id: 'analytics', label: 'Reports & Analytics', icon: BarChart3 },

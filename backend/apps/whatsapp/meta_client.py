@@ -652,3 +652,103 @@ class MetaCloudAPIClient:
             return {'success': False, 'error': err_msg, 'data': data}
         except requests.exceptions.RequestException as e:
             return {'success': False, 'error': str(e)}
+
+    def get_business_profile(self):
+        """
+        Fetches the official WhatsApp Business Profile registered on Meta for this phone number.
+        Returns: about, address, description, email, profile_picture_url, websites, vertical.
+        """
+        if not self.phone_number_id or not self.access_token:
+            return {'success': False, 'error': 'Missing Phone Number ID or Meta Access Token.'}
+
+        url = f"{self.base_url}/{self.phone_number_id}/whatsapp_business_profile"
+        params = {
+            'fields': 'about,address,description,email,profile_picture_url,websites,vertical'
+        }
+        try:
+            response = requests.get(url, params=params, headers=self._get_headers(), timeout=15)
+            data = response.json()
+            if response.status_code == 200:
+                profile_data = (data.get('data') or [{}])[0] if isinstance(data.get('data'), list) else data
+                return {'success': True, 'profile': profile_data}
+            err_msg = data.get('error', {}).get('message', 'Failed to fetch WhatsApp Business Profile from Meta')
+            return {'success': False, 'error': err_msg, 'data': data}
+        except requests.exceptions.RequestException as e:
+            return {'success': False, 'error': str(e)}
+
+    def update_business_profile(self, about=None, address=None, description=None, email=None, vertical=None, websites=None, profile_picture_handle=None):
+        """
+        Updates the WhatsApp Business Profile on Meta servers.
+        Directly affects what customers see when inspecting the business contact info card in WhatsApp.
+        """
+        if not self.phone_number_id or not self.access_token:
+            return {'success': False, 'error': 'Missing Phone Number ID or Meta Access Token.'}
+
+        url = f"{self.base_url}/{self.phone_number_id}/whatsapp_business_profile"
+        payload = {
+            'messaging_product': 'whatsapp'
+        }
+        if about is not None:
+            payload['about'] = str(about).strip()[:139]
+        if address is not None:
+            payload['address'] = str(address).strip()[:256]
+        if description is not None:
+            payload['description'] = str(description).strip()[:512]
+        if email is not None:
+            payload['email'] = str(email).strip()[:128]
+        if vertical is not None and str(vertical).strip():
+            payload['vertical'] = str(vertical).strip()
+        if websites is not None:
+            clean_sites = []
+            if isinstance(websites, list):
+                clean_sites = [str(w).strip() for w in websites if str(w).strip()][:2]
+            elif isinstance(websites, str) and websites.strip():
+                clean_sites = [w.strip() for w in websites.split(',') if w.strip()][:2]
+            if clean_sites:
+                payload['websites'] = clean_sites
+        if profile_picture_handle:
+            payload['profile_picture_handle'] = str(profile_picture_handle).strip()
+
+        try:
+            response = requests.post(url, json=payload, headers=self._get_headers(), timeout=20)
+            data = response.json()
+            if response.status_code in [200, 201] and (data.get('success') is True or 'data' in data):
+                return {'success': True, 'data': data}
+            err_msg = data.get('error', {}).get('message', 'Meta rejected Business Profile update')
+            return {'success': False, 'error': err_msg, 'data': data}
+        except requests.exceptions.RequestException as e:
+            return {'success': False, 'error': str(e)}
+
+    def upload_profile_picture_handle(self, file_bytes, mime_type='image/jpeg', app_id=None):
+        """
+        Uploads image binary to Meta Graph API Resumable Upload to generate a profile_picture_handle.
+        """
+        if not self.access_token:
+            return {'success': False, 'error': 'Missing Meta Access Token.'}
+
+        target_app = app_id or 'app'
+        session_url = f"{self.base_url}/{target_app}/uploads"
+        params = {
+            'file_length': len(file_bytes),
+            'file_type': mime_type
+        }
+        try:
+            init_res = requests.post(session_url, params=params, headers=self._get_headers(), timeout=15)
+            init_data = init_res.json()
+            session_id = init_data.get('id')
+            if not session_id:
+                return {'success': False, 'error': init_data.get('error', {}).get('message', 'Failed to create upload session')}
+
+            upload_url = f"{self.base_url}/{session_id}"
+            headers = {
+                'Authorization': f'OAuth {self.access_token}',
+                'file_offset': '0'
+            }
+            upload_res = requests.post(upload_url, data=file_bytes, headers=headers, timeout=30)
+            upload_data = upload_res.json()
+            handle = upload_data.get('h')
+            if handle:
+                return {'success': True, 'handle': handle}
+            return {'success': False, 'error': upload_data.get('error', {}).get('message', 'Failed to receive photo handle from Meta')}
+        except requests.exceptions.RequestException as e:
+            return {'success': False, 'error': str(e)}

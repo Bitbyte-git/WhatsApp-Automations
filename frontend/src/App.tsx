@@ -22,6 +22,8 @@ import { MetaBalanceView } from './views/MetaBalanceView';
 import { TransactionsView } from './views/TransactionsView';
 import { ApiWebhooksView } from './views/ApiWebhooksView';
 import { SettingsView } from './views/SettingsView';
+import { AdminBusinessProfileView } from './views/AdminBusinessProfileView';
+import { ClientBusinessProfileView } from './views/ClientBusinessProfileView';
 
 const LoadingScreen: React.FC = () => (
   <div className="min-h-screen bg-[#F5F7F8] flex flex-col items-center justify-center">
@@ -61,6 +63,7 @@ const AdminDashboardApp: React.FC = () => {
       {currentTab === 'webhooks' && <ApiWebhooksView />}
       {currentTab === 'meta-balance' && <MetaBalanceView />}
       {currentTab === 'settings' && <SettingsView />}
+      {currentTab === 'business-profile' && <AdminBusinessProfileView />}
     </Layout>
   );
 };
@@ -89,6 +92,7 @@ const ClientDashboardApp: React.FC = () => {
       {currentTab === 'transactions' && <TransactionsView />}
       {currentTab === 'analytics' && <AnalyticsView />}
       {currentTab === 'settings' && <SettingsView />}
+      {currentTab === 'business-profile' && <ClientBusinessProfileView />}
     </ClientLayout>
   );
 };

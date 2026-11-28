@@ -131,6 +131,14 @@ export const api = {
     api.post<any>('/whatsapp/accounts/request_otp/', data),
   verifyWhatsAppOtp: (data: { phone_number: string; code: string; pin?: string; business_name?: string; phone_number_id?: string }) =>
     api.post<any>('/whatsapp/accounts/verify_otp/', data),
+  getBusinessProfile: (accountId?: number | string) =>
+    accountId
+      ? api.get<any>(`/whatsapp/accounts/${accountId}/business_profile/`)
+      : api.get<any>('/whatsapp/accounts/my_business_profile/'),
+  updateBusinessProfile: (data: any, accountId?: number | string) =>
+    accountId
+      ? api.post<any>(`/whatsapp/accounts/${accountId}/business_profile/`, data)
+      : api.post<any>('/whatsapp/accounts/my_business_profile/', data),
 
   // Inbox & Contacts
   getContacts: (params = '') => api.get<any>(`/inbox/contacts/${params ? `?${params}` : ''}`),
