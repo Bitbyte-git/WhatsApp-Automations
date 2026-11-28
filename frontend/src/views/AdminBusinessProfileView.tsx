@@ -34,6 +34,7 @@ export const AdminBusinessProfileView: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // Real BitByte Company Profile Defaults
   const REAL_DEFAULT_ABOUT = 'Turning imagination into reality with next-gen digital solutions. 🚀';
@@ -231,6 +232,7 @@ Scalable technology engineered to grow your business.`;
         res = await api.updateBusinessProfile(payload, selectedAccountId);
       }
       if (res.success) {
+        setShowSuccessModal(true);
         setToast({
           type: 'success',
           text: res.message || 'WhatsApp Business Profile successfully synced with Meta Cloud API!',
@@ -857,6 +859,34 @@ Scalable technology engineered to grow your business.`;
           </div>
         </div>
       </div>
+
+      {/* Modern Centered Success Popup Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl border border-gray-100 space-y-4">
+            <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-emerald-600 shadow-inner">
+              <CheckCircle2 className="w-10 h-10" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-900">WhatsApp Profile Synced!</h3>
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                Your official business details, verified name, and profile picture have been successfully updated on Meta Cloud API servers.
+              </p>
+            </div>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 text-xs text-emerald-900 font-semibold flex items-center justify-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+              <span>Live on WhatsApp Globally</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-md transition-all cursor-pointer"
+            >
+              Great, Got It!
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
