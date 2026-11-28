@@ -719,6 +719,25 @@ class MetaCloudAPIClient:
         except requests.exceptions.RequestException as e:
             return {'success': False, 'error': str(e)}
 
+    def update_display_name(self, new_display_name, pin='123456'):
+        """
+        Submits new verified display name to Meta Cloud API and re-registers phone number to bind certificate.
+        """
+        if not self.phone_number_id or not self.access_token:
+            return {'success': False, 'error': 'Missing credentials'}
+
+        url = f"{self.base_url}/{self.phone_number_id}"
+        params = {'new_display_name': str(new_display_name).strip()}
+        try:
+            r = requests.post(url, params=params, headers=self._get_headers(), timeout=15)
+            # Re-register phone number to apply certificate
+            reg_url = f"{self.base_url}/{self.phone_number_id}/register"
+            reg_payload = {'messaging_product': 'whatsapp', 'pin': pin}
+            requests.post(reg_url, json=reg_payload, headers=self._get_headers(), timeout=15)
+            return {'success': True, 'data': r.json() if r.status_code == 200 else {}}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
     def upload_profile_picture_handle(self, file_bytes, mime_type='image/jpeg', app_id=None):
         """
         Uploads image binary to Meta Graph API Resumable Upload to generate a profile_picture_handle.

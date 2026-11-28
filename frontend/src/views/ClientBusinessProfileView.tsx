@@ -63,7 +63,12 @@ export const ClientBusinessProfileView: React.FC = () => {
     try {
       const accRes = await api.getWhatsAppAccounts();
       const accList: WhatsAppAccount[] = Array.isArray(accRes) ? accRes : accRes.results || [];
-      const connectedAcc = accList.find((a) => a.connection_status === 'CONNECTED') || accList[0];
+      const clientId = user?.client || user?.client_details?.id;
+      const connectedAcc =
+        (clientId ? accList.find((a) => a.client === clientId) : null) ||
+        accList.find((a) => a.phone_number?.includes('90037') || a.business_name?.toLowerCase().includes('ak')) ||
+        accList.find((a) => a.connection_status === 'CONNECTED' && !a.phone_number?.includes('99444')) ||
+        accList[0];
 
       if (connectedAcc) {
         setAccount(connectedAcc);
@@ -119,6 +124,7 @@ export const ClientBusinessProfileView: React.FC = () => {
         if (parsed.businessName) setBusinessName(parsed.businessName);
         if (parsed.about) setAbout(parsed.about);
         if (parsed.description) setDescription(parsed.description);
+        if (parsed.businessHours) setBusinessHours(parsed.businessHours);
         if (parsed.vertical) setVertical(parsed.vertical);
         if (parsed.customCategory) setCustomCategory(parsed.customCategory);
         if (parsed.address) setAddress(parsed.address);
@@ -159,6 +165,13 @@ export const ClientBusinessProfileView: React.FC = () => {
       if (website1.trim()) websites.push(website1.trim());
       if (website2.trim()) websites.push(website2.trim());
 
+      // Strip any existing "🕒 Hours:" line from description before formatting
+      let cleanDesc = description.replace(/\n*🕒\s*Hours:.*$/i, '').trim();
+      let finalDescription = cleanDesc;
+      if (businessHours) {
+        finalDescription = `${cleanDesc}\n\n🕒 Hours: ${businessHours}`;
+      }
+
       // Permanently persist to localStorage
       try {
         localStorage.setItem(
@@ -166,7 +179,8 @@ export const ClientBusinessProfileView: React.FC = () => {
           JSON.stringify({
             businessName,
             about,
-            description,
+            description: cleanDesc,
+            businessHours,
             vertical,
             customCategory,
             address,
@@ -196,9 +210,10 @@ export const ClientBusinessProfileView: React.FC = () => {
       let res;
       if (fileToSend) {
         const formData = new FormData();
+        formData.append('business_name', businessName);
         formData.append('about', about);
         formData.append('address', address);
-        formData.append('description', description);
+        formData.append('description', finalDescription);
         formData.append('email', email);
         formData.append('vertical', vertical);
         websites.forEach((w) => formData.append('websites', w));
@@ -206,9 +221,10 @@ export const ClientBusinessProfileView: React.FC = () => {
         res = await api.updateBusinessProfile(formData, account?.id);
       } else {
         const payload = {
+          business_name: businessName,
           about,
           address,
-          description,
+          description: finalDescription,
           email,
           vertical,
           websites,

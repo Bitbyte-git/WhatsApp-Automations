@@ -105,11 +105,28 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 }
 
 export const api = {
-  get: <T>(url: string) => request<T>(url, { method: 'GET' }),
-  post: <T>(url: string, body?: any) => request<T>(url, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
-  patch: <T>(url: string, body?: any) => request<T>(url, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
-  put: <T>(url: string, body?: any) => request<T>(url, { method: 'PUT', body: body ? JSON.stringify(body) : undefined }),
-  del: <T>(url: string) => request<T>(url, { method: 'DELETE' }),
+  get: <T>(url: string, options?: RequestInit) =>
+    request<T>(url, { ...options, method: 'GET' }),
+  post: <T>(url: string, body?: any, options?: RequestInit) =>
+    request<T>(url, {
+      ...options,
+      method: 'POST',
+      body: typeof FormData !== 'undefined' && body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+    }),
+  patch: <T>(url: string, body?: any, options?: RequestInit) =>
+    request<T>(url, {
+      ...options,
+      method: 'PATCH',
+      body: typeof FormData !== 'undefined' && body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+    }),
+  put: <T>(url: string, body?: any, options?: RequestInit) =>
+    request<T>(url, {
+      ...options,
+      method: 'PUT',
+      body: typeof FormData !== 'undefined' && body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+    }),
+  del: <T>(url: string, options?: RequestInit) =>
+    request<T>(url, { ...options, method: 'DELETE' }),
 
   // Auth endpoints
   login: (data: any) => api.post<{ user: any; tokens: { access: string; refresh: string } }>('/auth/login/', data),

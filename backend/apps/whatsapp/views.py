@@ -35,6 +35,21 @@ class WhatsAppAccountViewSet(viewsets.ModelViewSet):
         else:
             serializer.save()
 
+    def perform_update(self, serializer):
+        old_name = serializer.instance.business_name
+        account = serializer.save()
+        new_name = account.business_name
+        if new_name and new_name != old_name and account.phone_number_id and str(account.phone_number_id).isdigit():
+            client = MetaCloudAPIClient(
+                phone_number_id=account.phone_number_id,
+                access_token=account.access_token or getattr(settings, 'META_SYSTEM_USER_TOKEN', ''),
+                waba_id=account.waba_id or getattr(settings, 'META_WABA_ID', '')
+            )
+            client.update_display_name(new_name)
+            if account.client:
+                account.client.name = new_name
+                account.client.save(update_fields=['name'])
+
     @action(detail=True, methods=['post'])
     def sync_status(self, request, pk=None):
         """
@@ -110,6 +125,19 @@ class WhatsAppAccountViewSet(viewsets.ModelViewSet):
                 if hasattr(data, 'getlist') and data.getlist('websites')
                 else data.get('websites')
             )
+
+            # Auto-sync business display name to Meta if provided
+            business_name = data.get('business_name')
+            if business_name and str(business_name).strip():
+                clean_name = str(business_name).strip()
+                if clean_name != account.business_name:
+                    account.business_name = clean_name
+                    account.save(update_fields=['business_name'])
+                    if account.client:
+                        account.client.name = clean_name
+                        account.client.save(update_fields=['name'])
+                    # Submits new verified display name to Meta Cloud API
+                    client.update_display_name(clean_name)
 
             # Handle profile picture upload if provided
             profile_picture_handle = None
@@ -229,6 +257,15 @@ class WhatsAppAccountViewSet(viewsets.ModelViewSet):
         if account.client:
             account.client.name = new_name
             account.client.save(update_fields=['name'])
+
+        # Auto-sync new display name to Meta Cloud API
+        if account.phone_number_id and str(account.phone_number_id).isdigit():
+            client = MetaCloudAPIClient(
+                phone_number_id=account.phone_number_id,
+                access_token=account.access_token or getattr(settings, 'META_SYSTEM_USER_TOKEN', ''),
+                waba_id=account.waba_id or getattr(settings, 'META_WABA_ID', '')
+            )
+            client.update_display_name(new_name)
 
         return Response({
             'success': True,
