@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions, status, views
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.conf import settings
@@ -13,6 +14,7 @@ class WhatsAppAccountViewSet(viewsets.ModelViewSet):
     """
     serializer_class = WhatsAppAccountSerializer
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
         user = self.request.user
@@ -103,7 +105,11 @@ class WhatsAppAccountViewSet(viewsets.ModelViewSet):
             description = data.get('description')
             email = data.get('email')
             vertical = data.get('vertical')
-            websites = data.get('websites')
+            websites = (
+                data.getlist('websites')
+                if hasattr(data, 'getlist') and data.getlist('websites')
+                else data.get('websites')
+            )
 
             # Handle profile picture upload if provided
             profile_picture_handle = None

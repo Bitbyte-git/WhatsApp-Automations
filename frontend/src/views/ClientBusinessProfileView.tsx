@@ -92,11 +92,11 @@ export const ClientBusinessProfileView: React.FC = () => {
           setProfilePicUrl(p.profile_picture_url);
           setProfilePicPreview(p.profile_picture_url);
         }
-        if (p.about) setAbout(p.about);
-        if (p.description) setDescription(p.description);
-        if (p.vertical) setVertical(p.vertical);
-        if (p.address) setAddress(p.address);
-        if (p.email) setEmail(p.email);
+        if (p.about && p.about.trim()) setAbout(p.about);
+        if (p.description && p.description.trim()) setDescription(p.description);
+        if (p.vertical && p.vertical.trim()) setVertical(p.vertical);
+        if (p.address && p.address.trim()) setAddress(p.address);
+        if (p.email && p.email.trim()) setEmail(p.email);
         if (Array.isArray(p.websites) && p.websites.length > 0) {
           setWebsite1(p.websites[0] || '');
           setWebsite2(p.websites[1] || '');
@@ -110,6 +110,23 @@ export const ClientBusinessProfileView: React.FC = () => {
   };
 
   useEffect(() => {
+    // Read persisted client business profile from localStorage
+    try {
+      const cached = localStorage.getItem(`bitbyte_client_profile_${user?.id || 'default'}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.businessName) setBusinessName(parsed.businessName);
+        if (parsed.about) setAbout(parsed.about);
+        if (parsed.description) setDescription(parsed.description);
+        if (parsed.vertical) setVertical(parsed.vertical);
+        if (parsed.customCategory) setCustomCategory(parsed.customCategory);
+        if (parsed.address) setAddress(parsed.address);
+        if (parsed.email) setEmail(parsed.email);
+        if (parsed.website1) setWebsite1(parsed.website1);
+        if (parsed.website2) setWebsite2(parsed.website2);
+        if (parsed.profilePicPreview) setProfilePicPreview(parsed.profilePicPreview);
+      }
+    } catch {}
     loadClientAccountAndProfile();
   }, [user]);
 
@@ -141,19 +158,47 @@ export const ClientBusinessProfileView: React.FC = () => {
       if (website1.trim()) websites.push(website1.trim());
       if (website2.trim()) websites.push(website2.trim());
 
-      const formData = new FormData();
-      formData.append('about', about);
-      formData.append('address', address);
-      formData.append('description', description);
-      formData.append('email', email);
-      formData.append('vertical', vertical);
-      websites.forEach((w) => formData.append('websites', w));
+      // Permanently persist to localStorage
+      try {
+        localStorage.setItem(
+          `bitbyte_client_profile_${user?.id || 'default'}`,
+          JSON.stringify({
+            businessName,
+            about,
+            description,
+            vertical,
+            customCategory,
+            address,
+            email,
+            website1,
+            website2,
+            profilePicPreview,
+          })
+        );
+      } catch {}
 
+      let res;
       if (profilePicFile) {
+        const formData = new FormData();
+        formData.append('about', about);
+        formData.append('address', address);
+        formData.append('description', description);
+        formData.append('email', email);
+        formData.append('vertical', vertical);
+        websites.forEach((w) => formData.append('websites', w));
         formData.append('profile_picture', profilePicFile);
+        res = await api.updateBusinessProfile(formData, account?.id);
+      } else {
+        const payload = {
+          about,
+          address,
+          description,
+          email,
+          vertical,
+          websites,
+        };
+        res = await api.updateBusinessProfile(payload, account?.id);
       }
-
-      const res = await api.updateBusinessProfile(formData, account?.id);
       if (res.success) {
         setToast({
           type: 'success',
@@ -185,6 +230,12 @@ export const ClientBusinessProfileView: React.FC = () => {
     try {
       const updated = tempName.trim();
       setBusinessName(updated);
+      try {
+        const cached = localStorage.getItem(`bitbyte_client_profile_${user?.id || 'default'}`);
+        const parsed = cached ? JSON.parse(cached) : {};
+        parsed.businessName = updated;
+        localStorage.setItem(`bitbyte_client_profile_${user?.id || 'default'}`, JSON.stringify(parsed));
+      } catch {}
       if (account?.id) {
         await api.patch(`/whatsapp/accounts/${account.id}/`, { business_name: updated });
       }
