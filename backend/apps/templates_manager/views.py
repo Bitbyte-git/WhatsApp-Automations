@@ -1,6 +1,8 @@
+from django.db import models
 from rest_framework import viewsets, permissions, filters, status, views
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from apps.clients.models import Client
 from apps.templates_manager.models import MessageTemplate
 from apps.templates_manager.serializers import MessageTemplateSerializer
 from apps.whatsapp.models import WhatsAppAccount
